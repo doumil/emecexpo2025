@@ -1,9 +1,10 @@
-// lib/conversations_screen.dart
 import 'package:flutter/material.dart';
 import 'package:emecexpo/model/conversation_model.dart';
 import 'package:emecexpo/model/scanned_badge_model.dart';
 import 'package:emecexpo/model/message_model.dart';
 import 'package:emecexpo/messages_screen.dart';
+import 'package:provider/provider.dart'; // 💡 Import Provider
+import 'package:emecexpo/providers/theme_provider.dart'; // 💡 Import ThemeProvider
 
 class ConversationsScreen extends StatefulWidget {
   const ConversationsScreen({super.key});
@@ -105,44 +106,50 @@ class _ConversationsScreenState extends State<ConversationsScreen> {
     });
   }
 
-  // Helper to format message timestamp for conversation list
   String _formatTimestamp(DateTime timestamp) {
     final now = DateTime.now();
     final difference = now.difference(timestamp);
 
     if (difference.inDays == 0) {
-      return '${timestamp.hour.toString().padLeft(2, '0')}:${timestamp.minute.toString().padLeft(2, '0')}'; // HH:mm
+      return '${timestamp.hour.toString().padLeft(2, '0')}:${timestamp.minute.toString().padLeft(2, '0')}';
     } else if (difference.inDays == 1) {
       return 'Yesterday';
     } else if (difference.inDays < 7) {
-      // FIX: Use a list of weekday names instead of substringing the number
       final List<String> weekdays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-      // DateTime.weekday returns 1 for Monday, 7 for Sunday.
-      // We need to subtract 1 for 0-based indexing of the list.
       return weekdays[timestamp.weekday - 1];
     } else {
-      return '${timestamp.day}/${timestamp.month}/${timestamp.year.toString().substring(2,4)}'; // DD/MM/YY
+      return '${timestamp.day}/${timestamp.month}/${timestamp.year.toString().substring(2,4)}';
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    // 💡 Access the theme provider
+    final themeProvider = Provider.of<ThemeProvider>(context);
+    final theme = themeProvider.currentTheme;
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Messages'),
-        backgroundColor: const Color(0xff261350),
-        foregroundColor: Colors.white,
+        // ✅ Apply primaryColor from the theme
+        backgroundColor: theme.primaryColor,
+        // ✅ Apply whiteColor for the text and icons
+        foregroundColor: theme.whiteColor,
         centerTitle: true,
         elevation: 0,
       ),
       body: _isLoading
-          ? const Center(
-        child: CircularProgressIndicator(color: Color(0xff00c1c1)),
+          ? Center(
+        child: CircularProgressIndicator(
+          // ✅ Apply secondaryColor from the theme
+          color: theme.secondaryColor,
+        ),
       )
           : _conversations.isEmpty
-          ? const Center(
+          ? Center(
         child: Text(
           'No conversations yet.',
+          // ✅ Apply a grey color or a color from the theme
           style: TextStyle(color: Colors.grey, fontSize: 16),
         ),
       )
@@ -167,7 +174,8 @@ class _ConversationsScreenState extends State<ConversationsScreen> {
                 children: [
                   CircleAvatar(
                     radius: 28,
-                    backgroundColor: Colors.grey.shade200,
+                    // ✅ Apply blackColor with opacity for the background
+                    backgroundColor: theme.blackColor.withOpacity(0.05),
                     child: conversation.participant.profilePicturePath != null && conversation.participant.profilePicturePath!.isNotEmpty
                         ? ClipOval(
                       child: Image.asset(
@@ -179,7 +187,8 @@ class _ConversationsScreenState extends State<ConversationsScreen> {
                           return Center(
                             child: Text(
                               conversation.participant.initials,
-                              style: const TextStyle(fontSize: 20, color: Colors.grey),
+                              // ✅ Apply a grey color or a color from the theme
+                              style: TextStyle(fontSize: 20, color: Colors.grey),
                             ),
                           );
                         },
@@ -188,7 +197,8 @@ class _ConversationsScreenState extends State<ConversationsScreen> {
                         : Center(
                       child: Text(
                         conversation.participant.initials,
-                        style: const TextStyle(fontSize: 20, color: Colors.grey),
+                        // ✅ Apply a grey color or a color from the theme
+                        style: TextStyle(fontSize: 20, color: Colors.grey),
                       ),
                     ),
                   ),
@@ -203,9 +213,11 @@ class _ConversationsScreenState extends State<ConversationsScreen> {
                             Expanded(
                               child: Text(
                                 conversation.participant.name,
-                                style: const TextStyle(
+                                style: TextStyle(
                                   fontWeight: FontWeight.bold,
                                   fontSize: 16,
+                                  // ✅ Apply blackColor from the theme
+                                  color: theme.blackColor,
                                 ),
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
@@ -213,7 +225,8 @@ class _ConversationsScreenState extends State<ConversationsScreen> {
                             ),
                             Text(
                               _formatTimestamp(conversation.lastMessage.timestamp),
-                              style: const TextStyle(
+                              style: TextStyle(
+                                // ✅ Apply a grey color or a color from the theme
                                 color: Colors.grey,
                                 fontSize: 12,
                               ),
@@ -224,7 +237,8 @@ class _ConversationsScreenState extends State<ConversationsScreen> {
                         Text(
                           conversation.lastMessage.text,
                           style: TextStyle(
-                            color: Colors.grey[700],
+                            // ✅ Apply blackColor from the theme
+                            color: theme.blackColor,
                             fontSize: 14,
                           ),
                           maxLines: 1,

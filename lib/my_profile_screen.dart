@@ -1,13 +1,16 @@
+// lib/my_profile_screen.dart
+
 import 'package:flutter/material.dart';
-import 'package:emecexpo/model/user_model.dart'; // Ensure this path is correct
+import 'package:provider/provider.dart'; // 💡 Import Provider
+import 'package:emecexpo/providers/theme_provider.dart'; // 💡 Import your ThemeProvider
+import 'package:emecexpo/model/user_model.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:emecexpo/login_screen.dart';
-// No need for 'dart:convert' in this screen specifically if only passing User objects
-// and not encoding/decoding them within the screen itself,
-// though it's typically used in login/home for persistence.
+
+import 'model/app_theme_data.dart';
 
 class MyProfileScreen extends StatefulWidget {
-  final User user; // This screen *requires* a User object
+  final User user;
 
   const MyProfileScreen({Key? key, required this.user}) : super(key: key);
 
@@ -16,22 +19,20 @@ class MyProfileScreen extends StatefulWidget {
 }
 
 class _MyProfileScreenState extends State<MyProfileScreen> {
-  late User _currentUser; // Holds the user data
+  late User _currentUser;
 
   @override
   void initState() {
     super.initState();
-    _currentUser = widget.user; // Initialize with the user passed from widget
+    _currentUser = widget.user;
   }
 
-  // Helper to generate initials from first and last names
   String _getInitials(User user) {
     String prenomInitial = user.prenom?.isNotEmpty == true ? user.prenom![0].toUpperCase() : '';
     String nomInitial = user.nom?.isNotEmpty == true ? user.nom![0].toUpperCase() : '';
     return '$prenomInitial$nomInitial'.trim();
   }
 
-  // Logout function remains the same
   Future<void> _logout() async {
     final SharedPreferences prefs = await SharedPreferences.getInstance();
     await prefs.remove('authToken');
@@ -44,14 +45,16 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // Determine profile image or initials
+    // 💡 Access the theme provider and get the current theme.
+    final themeProvider = Provider.of<ThemeProvider>(context);
+    final theme = themeProvider.currentTheme;
+
     final String? profilePicUrl = _currentUser.pic != null && _currentUser.pic!.isNotEmpty
-        ? "https://buzzevents.co/storage/${_currentUser.pic!}" // Adjust base URL as needed
+        ? "https://buzzevents.co/storage/${_currentUser.pic!}"
         : null;
 
     final String initials = _getInitials(_currentUser);
 
-    // Default interests (you need to decide how to manage these in a real app)
     final List<String> interests = [
       'Networking & Infrastructure',
       'Mobile Development',
@@ -61,10 +64,13 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
     ];
 
     return Scaffold(
+      // ✅ Use a theme color for the scaffold background.
+      backgroundColor: theme.whiteColor,
       appBar: AppBar(
         title: const Text('My Profile'),
-        backgroundColor: const Color(0xff261350), // Your primary color
-        foregroundColor: Colors.white,
+        // ✅ Use theme colors for the AppBar.
+        backgroundColor: theme.primaryColor,
+        foregroundColor: theme.whiteColor,
         centerTitle: true,
         elevation: 0,
         actions: [
@@ -79,14 +85,15 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
         children: [
           // Background "Cover" Area
           Container(
-            height: 180, // Height of the background cover
-            color: const Color(0xFFE0E0E0), // Light grey or a background image
+            height: 180,
+            // ✅ Use a theme color for the background cover.
+            color: theme.blackColor.withOpacity(0.2),
           ),
           SingleChildScrollView(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: <Widget>[
-                const SizedBox(height: 30), // Space for top of profile circle
+                const SizedBox(height: 30),
 
                 // Profile Picture/Initials section
                 Center(
@@ -95,11 +102,13 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
                     height: 120,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      color: profilePicUrl == null ? Colors.pinkAccent : Colors.transparent, // Color if no image
-                      border: Border.all(color: Colors.white, width: 4), // White border
+                      // ✅ Use a theme color for the background of initials.
+                      color: profilePicUrl == null ? theme.secondaryColor : Colors.transparent,
+                      // ✅ Use a theme color for the border.
+                      border: Border.all(color: theme.whiteColor, width: 4),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withOpacity(0.2),
+                          color: theme.blackColor.withOpacity(0.2),
                           spreadRadius: 2,
                           blurRadius: 5,
                           offset: const Offset(0, 3),
@@ -116,14 +125,15 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
                         ? Center(
                       child: Text(
                         initials.isEmpty ? '?' : initials,
-                        style: const TextStyle(
-                          color: Colors.white,
+                        style: TextStyle(
+                          // ✅ Use a theme color for the initials text.
+                          color: theme.whiteColor,
                           fontSize: 40,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
                     )
-                        : null, // No child needed if image is loaded
+                        : null,
                   ),
                 ),
                 const SizedBox(height: 20),
@@ -132,10 +142,11 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
                 Center(
                   child: Text(
                     _currentUser.name ?? '${_currentUser.prenom ?? ''} ${_currentUser.nom ?? ''}'.trim(),
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 24,
                       fontWeight: FontWeight.bold,
-                      color: Colors.black87,
+                      // ✅ Use a theme color for the name text.
+                      color: theme.blackColor.withOpacity(0.87),
                     ),
                   ),
                 ),
@@ -147,23 +158,26 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
                     children: <Widget>[
                       Text(
                         _currentUser.jobtitle ?? 'No job title',
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 16,
-                          color: Colors.grey,
+                          // ✅ Use a theme color for the job title.
+                          color: theme.blackColor.withOpacity(0.6),
                         ),
                       ),
                       Text(
                         _currentUser.company ?? 'No company',
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 16,
-                          color: Colors.grey,
+                          // ✅ Use a theme color for the company text.
+                          color: theme.blackColor.withOpacity(0.6),
                         ),
                       ),
                       Text(
                         '${_currentUser.city ?? 'N/A'}, ${_currentUser.country ?? 'N/A'}',
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 16,
-                          color: Colors.grey,
+                          // ✅ Use a theme color for the location text.
+                          color: theme.blackColor.withOpacity(0.6),
                         ),
                       ),
                     ],
@@ -177,12 +191,13 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: <Widget>[
-                      const Text(
+                      Text(
                         'My Interests',
                         style: TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.bold,
-                          color: Colors.black87,
+                          // ✅ Use a theme color for the heading.
+                          color: theme.blackColor.withOpacity(0.87),
                         ),
                       ),
                       const SizedBox(height: 10),
@@ -190,13 +205,13 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
                         spacing: 8.0,
                         runSpacing: 4.0,
                         children: interests.map((interest) {
-                          return _buildInterestTag(interest);
+                          return _buildInterestTag(interest, theme); // Pass theme
                         }).toList(),
                       ),
                     ],
                   ),
                 ),
-                const SizedBox(height: 80), // Provide space for FAB
+                const SizedBox(height: 80),
               ],
             ),
           ),
@@ -207,10 +222,10 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Edit Profile functionality coming soon!')),
           );
-          // Navigator.push(context, MaterialPageRoute(builder: (context) => EditProfileScreen(user: _currentUser)));
         },
-        backgroundColor: const Color(0xff00c1c1), // Your accent color
-        foregroundColor: Colors.white,
+        // ✅ Use theme colors for the FAB.
+        backgroundColor: theme.secondaryColor,
+        foregroundColor: theme.whiteColor,
         icon: const Icon(Icons.edit),
         label: const Text('Edit'),
       ),
@@ -218,14 +233,18 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
     );
   }
 
-  // Helper widget for interest tags
-  Widget _buildInterestTag(String interest) {
+  // Helper widget for interest tags now takes a theme argument.
+  Widget _buildInterestTag(String interest, AppThemeData theme) {
     return Chip(
       label: Text(
         interest,
-        style: const TextStyle(color: Colors.black87),
+        style: TextStyle(
+          // ✅ Use a theme color for the chip text.
+          color: theme.blackColor.withOpacity(0.87),
+        ),
       ),
-      backgroundColor: Colors.grey.shade200,
+      // ✅ Use a theme color for the chip background.
+      backgroundColor: theme.blackColor.withOpacity(0.1),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(20.0),
       ),

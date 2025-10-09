@@ -1,18 +1,32 @@
+// lib/app_user_guide_screen.dart
+
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart'; // Import Provider
+import 'package:emecexpo/providers/theme_provider.dart'; // Import ThemeProvider
 
 class AppUserGuideScreen extends StatelessWidget {
   const AppUserGuideScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
+    // 💡 Access the theme provider
+    final themeProvider = Provider.of<ThemeProvider>(context);
+    final theme = themeProvider.currentTheme;
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('App User Guide'),
-        backgroundColor: const Color(0xff261350), // Adjust to your theme
-        foregroundColor: Colors.white, // For the back button and title text
+        // ✅ Apply primaryColor from the theme
+        backgroundColor: theme.primaryColor,
+        // ✅ Apply whiteColor for the back button and title text
+        foregroundColor: theme.whiteColor,
       ),
-      body: const Center(
-        child: Text('Content for App User Guide goes here.'),
+      body: Center(
+        child: Text(
+          'Content for App User Guide goes here.',
+          // ✅ Apply blackColor from the theme
+          style: TextStyle(color: theme.blackColor),
+        ),
       ),
     );
   }

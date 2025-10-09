@@ -1,8 +1,12 @@
+// lib/media_p_screen.dart
+
 import 'package:animate_do/animate_do.dart';
 import 'package:emecexpo/sponsors/mediapartnersData.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:provider/provider.dart'; // 💡 Import Provider
+import 'package:emecexpo/providers/theme_provider.dart'; // 💡 Import your ThemeProvider
 
 class MediaPScreen extends StatefulWidget {
   const MediaPScreen({Key? key}) : super(key: key);
@@ -23,11 +27,8 @@ class _MediaPScreenState extends State<MediaPScreen> {
     responseList.forEach((post) {
       listItems.add(Container(
           height: 170,
-          //margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-          // decoration: BoxDecoration(borderRadius: BorderRadius.all(Radius.circular(20.0)), color: Colors.white, boxShadow: [
-          //BoxShadow(color: Colors.black.withAlpha(100), blurRadius: 10.0),]),
           child: Container(
-            padding: const EdgeInsets.only(right: 10.0,left: 10.0),
+            padding: const EdgeInsets.only(right: 10.0, left: 10.0),
             child: Container(
               child: Row(
                 children: [
@@ -35,8 +36,6 @@ class _MediaPScreenState extends State<MediaPScreen> {
                     flex: 1,
                     child: Container(
                       height: 150,
-                      // margin: EdgeInsets.only(top: height * 0.01),
-                      //padding: EdgeInsets.only(bottom: height * 0.01),
                       child: Image.asset(
                         "${post["image1"]}",
                       ),
@@ -46,8 +45,6 @@ class _MediaPScreenState extends State<MediaPScreen> {
                     flex: 1,
                     child: Container(
                       height: 150,
-                      //margin: EdgeInsets.only(top: height * 0.01),
-                      // padding: EdgeInsets.only(bottom: height * 0.01),
                       child: post["image2"].toString() == "1" ? Container() : Container(
                         child: Image.asset(
                           "${post["image2"]}",
@@ -69,13 +66,6 @@ class _MediaPScreenState extends State<MediaPScreen> {
   void initState() {
     super.initState();
     getPostsData();
-    /*controller.addListener(() {
-      double value = controller.offset / 119;
-      setState(() {
-        topContainer = value;
-      });
-    });
-    */
   }
 
   Future<bool> _onWillPop() async {
@@ -96,28 +86,23 @@ class _MediaPScreenState extends State<MediaPScreen> {
           ),
         ],
       ),
-    )) ??
-        false;
+    )) ?? false;
   }
 
   @override
   Widget build(BuildContext context) {
-    double height = MediaQuery
-        .of(context)
-        .size
-        .height;
-    double width = MediaQuery
-        .of(context)
-        .size
-        .width;
-    final Size size = MediaQuery
-        .of(context)
-        .size;
+    // 💡 Access the theme provider and get the current theme.
+    final themeProvider = Provider.of<ThemeProvider>(context);
+    final theme = themeProvider.currentTheme;
+
+    final Size size = MediaQuery.of(context).size;
+
     return NotificationListener<ScrollNotification>(
       child: WillPopScope(
         onWillPop: _onWillPop,
         child: Scaffold(
-          backgroundColor: Colors.white,
+          // ✅ Use a background color from the theme.
+          backgroundColor: theme.whiteColor,
           body: FadeInDown(
             duration: Duration(milliseconds: 500),
             child: Container(
@@ -156,142 +141,8 @@ class _MediaPScreenState extends State<MediaPScreen> {
               ),
             ),
           ),
-        ),),
+        ),
+      ),
     );
   }
 }
-/*
-  @override
-  Widget build(BuildContext context) {
-    double height = MediaQuery.of(context).size.height;
-    double width = MediaQuery.of(context).size.width;
-    return WillPopScope(
-        onWillPop: _onWillPop,
-        child: Scaffold(
-          extendBodyBehindAppBar: true,
-          body: SingleChildScrollView(
-            child: FadeInDown(
-              duration: Duration(milliseconds: 500),
-              child: Column(
-                children: [
-                  Row(
-                    children: [
-                      Expanded(
-                        flex: 1,
-                        child: Container(
-                          height: 150,
-                          margin: EdgeInsets.only(top: height * 0.01),
-                          //padding: EdgeInsets.only(bottom: height * 0.01),
-                          child: Image.asset(
-                            "assets/partners/infomediaire.png",
-                          ),
-                        ),
-                      ),
-                      Expanded(
-                        flex: 1,
-                        child: Container(
-                          height: 150,
-                          margin: EdgeInsets.only(top: height * 0.01),
-                          // padding: EdgeInsets.only(bottom: height * 0.01),
-                          child: Image.asset(
-                            "assets/partners/aujourdhui.png",
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  Row(
-                    children: [
-                      Expanded(
-                        flex: 1,
-                        child: Container(
-                          height: 150,
-                          margin: EdgeInsets.only(top: height * 0.01),
-                          //padding: EdgeInsets.only(bottom: height * 0.01),
-                          child: Image.asset(
-                            "assets/partners/industrie-du-maroc.png",
-                          ),
-                        ),
-                      ),
-                      Expanded(
-                        flex: 1,
-                        child: Container(
-                          height: 150,
-                          margin: EdgeInsets.only(top: height * 0.01),
-                          // padding: EdgeInsets.only(bottom: height * 0.01),
-                          child: Image.asset(
-                            "assets/partners/tdm.png",
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  Row(
-                    children: [
-                      Expanded(
-                        flex: 1,
-                        child: Container(
-                          height: 150,
-                          margin: EdgeInsets.only(top: height * 0.01),
-                          //padding: EdgeInsets.only(bottom: height * 0.01),
-                          child: Image.asset(
-                            "assets/partners/media7.png",
-                          ),
-                        ),
-                      ),
-                      Expanded(
-                        flex: 1,
-                        child: Container(
-                          height: 150,
-                          margin: EdgeInsets.only(top: height * 0.01),
-                          // padding: EdgeInsets.only(bottom: height * 0.01),
-                          child: Image.asset(
-                            "assets/partners/conso-news.png",
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  Row(
-                    children: [
-                      Expanded(
-                        flex: 1,
-                        child: Container(
-                          height: 150,
-                          margin: EdgeInsets.only(top: height * 0.01),
-                          //padding: EdgeInsets.only(bottom: height * 0.01),
-                          child: Image.asset(
-                            "assets/partners/hitradio.png",
-                          ),
-                        ),
-                      ),
-                      Expanded(
-                        flex: 1,
-                        child: Container(
-                          height: 150,
-                          margin: EdgeInsets.only(top: height * 0.01),
-                          // padding: EdgeInsets.only(bottom: height * 0.01),
-                          child: Image.asset(
-                            "assets/partners/medi1tv.png",
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  Center(
-                    child: Container(
-                      height: 150,
-                      //margin: EdgeInsets.only(top: height * 0.04),
-                      //padding: EdgeInsets.only(bottom: height * 0.04),
-                      child: Image.asset(
-                        "assets/partners/medi1radio.png",
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ));
-  }
- */

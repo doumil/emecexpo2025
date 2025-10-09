@@ -1,32 +1,41 @@
 // lib/my_badge_screen.dart
+
 import 'package:flutter/material.dart';
-import 'package:emecexpo/model/badge_model.dart'; // Adjust import path
+import 'package:provider/provider.dart'; // 💡 Import Provider
+import 'package:emecexpo/providers/theme_provider.dart'; // 💡 Import your ThemeProvider
+import 'package:emecexpo/model/badge_model.dart';
 
 class MyBadgeScreen extends StatelessWidget {
   const MyBadgeScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
-    // Example MyBadge data. In a real app, this would come from a backend or state management.
+    // 💡 Access the theme provider and get the current theme.
+    final themeProvider = Provider.of<ThemeProvider>(context);
+    final theme = themeProvider.currentTheme;
+
+    // Example MyBadge data.
     final MyBadge userBadge = MyBadge(
       name: 'YASSINE DOUMIL',
-      role: 'Manager', // Assuming role is separate for model, then combined for display
+      role: 'Manager',
       company: 'SUBGENIOS sarl',
-      qrCodeImagePath: 'assets/qr_code_placeholder.png', // Ensure this asset exists
+      qrCodeImagePath: 'assets/qr_code_placeholder.png',
       visitorStatus: 'VISITOR',
     );
 
-    // Using MediaQuery to get screen dimensions for responsive layout
     final double screenWidth = MediaQuery.of(context).size.width;
     final double screenHeight = MediaQuery.of(context).size.height;
 
     return Scaffold(
+      // ✅ Use a theme color for the main background
+      backgroundColor: theme.whiteColor,
       appBar: AppBar(
         title: const Text('My Badge'),
-        backgroundColor: const Color(0xff261350), // Dark purple AppBar background
-        foregroundColor: Colors.white, // White text/icons
-        centerTitle: true, // Center the title
-        elevation: 0, // No shadow
+        // ✅ Use theme colors for the AppBar
+        backgroundColor: theme.primaryColor,
+        foregroundColor: theme.whiteColor,
+        centerTitle: true,
+        elevation: 0,
       ),
       body: Column(
         children: [
@@ -35,54 +44,58 @@ class MyBadgeScreen extends StatelessWidget {
               child: Padding(
                 padding: const EdgeInsets.all(20.0),
                 child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center, // Center content vertically in the available space
-                  crossAxisAlignment: CrossAxisAlignment.center, // Center content horizontally
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.center,
                   children: <Widget>[
-                    SizedBox(height: screenHeight * 0.05), // Spacing from top
+                    SizedBox(height: screenHeight * 0.05),
 
-                    // User Name
                     Text(
-                      userBadge.name, // Using data from model
-                      style: const TextStyle(
+                      userBadge.name,
+                      style: TextStyle(
                         fontSize: 24,
                         fontWeight: FontWeight.bold,
-                        color: Colors.black87,
+                        // ✅ Use a theme color for the text
+                        color: theme.blackColor.withOpacity(0.87),
                       ),
                       textAlign: TextAlign.center,
                     ),
                     const SizedBox(height: 5),
 
-                    // User Details (Role at Company)
                     Text(
-                      userBadge.roleAndCompany, // Using combined getter from model
-                      style: const TextStyle(
+                      userBadge.roleAndCompany,
+                      style: TextStyle(
                         fontSize: 16,
-                        color: Colors.grey,
+                        // ✅ Use a theme color for the text
+                        color: theme.blackColor.withOpacity(0.6),
                       ),
                       textAlign: TextAlign.center,
                     ),
-                    SizedBox(height: screenHeight * 0.1), // Spacing before QR code
+                    SizedBox(height: screenHeight * 0.1),
 
                     // QR Code Image
                     Container(
-                      width: screenWidth * 0.7, // Adjust QR code size relative to screen width
-                      height: screenWidth * 0.7, // Keep it square
-                      color: Colors.white, // Background for the QR code area
+                      width: screenWidth * 0.7,
+                      height: screenWidth * 0.7,
+                      // ✅ Use a theme color for the QR background area
+                      color: theme.whiteColor,
                       child: Image.asset(
-                        userBadge.qrCodeImagePath, // Using data from model
+                        userBadge.qrCodeImagePath,
                         fit: BoxFit.contain,
+                        // ✅ Conditionally apply color filter for dark mode
+                       // color: themeProvider.isDark ? theme.whiteColor : null,
                         errorBuilder: (context, error, stackTrace) {
-                          return const Center(
+                          return Center(
                             child: Icon(
                               Icons.qr_code,
                               size: 100,
-                              color: Colors.grey,
+                              // ✅ Use a theme color for the icon
+                              color: theme.blackColor.withOpacity(0.6),
                             ),
                           );
                         },
                       ),
                     ),
-                    SizedBox(height: screenHeight * 0.1), // Spacing after QR code
+                    SizedBox(height: screenHeight * 0.1),
                   ],
                 ),
               ),
@@ -92,20 +105,22 @@ class MyBadgeScreen extends StatelessWidget {
           Container(
             width: double.infinity,
             padding: const EdgeInsets.symmetric(vertical: 15.0),
-            color: const Color(0xff261350), // Dark background color
+            // ✅ Use a theme color for the status bar background
+            color: theme.primaryColor,
             child: Text(
-              userBadge.visitorStatus, // Using data from model
-              style: const TextStyle(
-                color: Colors.white, // White text color
+              userBadge.visitorStatus,
+              style: TextStyle(
+                // ✅ Use a theme color for the status bar text
+                color: theme.whiteColor,
                 fontSize: 18,
                 fontWeight: FontWeight.bold,
               ),
               textAlign: TextAlign.center,
             ),
           ),
-          // Line below the Visitor section
-          const Divider(
-            color: Colors.grey, // You can change this to Colors.white if preferred
+          Divider(
+            // ✅ Use a theme color for the divider line
+            color: theme.blackColor.withOpacity(0.2),
             height: 1,
             thickness: 1,
             indent: 0,

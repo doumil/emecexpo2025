@@ -73,7 +73,6 @@ class _NetworkinScreenState extends State<NetworkinScreen> {
       });
     }
   }
-
   // This method sets up the future, called *only* when _userAuthToken is ready
   void _initializeNetworkingData() {
     if (_userAuthToken == null || _userAuthToken!.isEmpty) {

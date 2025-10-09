@@ -1,5 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart'; // Keep for SystemNavigator.pop() if _onWillPop is used elsewhere
+import 'package:flutter/services.dart';
+import 'package:provider/provider.dart';
+import 'package:emecexpo/providers/theme_provider.dart';
+
+import 'model/app_theme_data.dart';
 
 class ContactScreen extends StatefulWidget {
   const ContactScreen({Key? key}) : super(key: key);
@@ -9,57 +13,36 @@ class ContactScreen extends StatefulWidget {
 }
 
 class _ContactScreenState extends State<ContactScreen> {
-  // If you need the _onWillPop dialog for the whole app, it's better placed in WelcomPage or a wrapper.
-  // For a single screen like Contact, it's usually not required unless specific exit logic is needed.
-  // I'm commenting it out to simplify, as per matching the "settings" design, which doesn't typically have this.
-  /*
-  Future<bool> _onWillPop() async {
-    return (await showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Êtes-vous sûr'),
-        content: const Text('Voulez-vous quitter une application'),
-        actions: <Widget>[
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Non'),
-          ),
-          TextButton(
-            onPressed: () => SystemNavigator.pop(),
-            child: const Text('Oui '),
-          ),
-        ],
-      ),
-    )) ?? false;
-  }
-  */
-
   @override
   Widget build(BuildContext context) {
-    // We don't need width/height calculations for basic layout, AppBar handles it.
-    // double height = MediaQuery.of(context).size.height;
-    // double width = MediaQuery.of(context).size.width;
+    // 💡 Access the theme provider
+    final themeProvider = Provider.of<ThemeProvider>(context);
+    final theme = themeProvider.currentTheme;
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Contact'), // Centered title for Contact page
-        centerTitle: true, // Center the title like in your Settings design
-        backgroundColor: const Color(0xff261350), // Your app's theme color
-        foregroundColor: Colors.white, // Color for text and icons on the AppBar
+        title: const Text('Contact'),
+        centerTitle: true,
+        // ✅ Apply primaryColor from the theme
+        backgroundColor: theme.primaryColor,
+        // ✅ Apply whiteColor for the text and icons
+        foregroundColor: theme.whiteColor,
       ),
       body: Container(
-        color: Colors.white, // Main background color for the body, similar to settings
+        // ✅ Apply whiteColor for the background
+        color: theme.whiteColor,
         child: SingleChildScrollView(
           child: Padding(
-            padding: const EdgeInsets.all(16.0), // Padding around the content
+            padding: const EdgeInsets.all(16.0),
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start, // Align content to the start
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: <Widget>[
                 // Section 1: Logo and Introduction
-                Card( // Using Card for a raised, defined section
+                Card(
                   margin: const EdgeInsets.only(bottom: 20.0),
-                  color: Colors.white, // Card background color
-                  elevation: 2.0, // Shadow for the card
+                  // ✅ Apply whiteColor for the card background
+                  color: theme.whiteColor,
+                  elevation: 2.0,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(8.0),
                   ),
@@ -68,14 +51,15 @@ class _ContactScreenState extends State<ContactScreen> {
                     child: Column(
                       children: [
                         Image.asset(
-                          "assets/EMEC-LOGO.png", // Ensure this path is correct
-                          height: 100, // Adjust height as needed
+                          "assets/EMEC-LOGO.png",
+                          height: 100,
                         ),
                         const SizedBox(height: 16.0),
-                        const Text(
+                        Text(
                           'If you have any questions or comments, please do not hesitate to contact us by phone or email.',
                           textAlign: TextAlign.center,
-                          style: TextStyle(fontSize: 16.0, color: Colors.grey),
+                          // ✅ Apply blackColor with opacity
+                          style: TextStyle(fontSize: 16.0, color: theme.blackColor.withOpacity(0.6)),
                         ),
                       ],
                     ),
@@ -83,18 +67,20 @@ class _ContactScreenState extends State<ContactScreen> {
                 ),
 
                 // Section 2: Opening Time
-                const Text(
+                Text(
                   'Opening time',
                   style: TextStyle(
                     fontSize: 18,
-                    color: Color(0xff261350), // Match text color to your app theme
+                    // ✅ Apply primaryColor from the theme
+                    color: theme.primaryColor,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
-                const SizedBox(height: 10), // Spacing below heading
+                const SizedBox(height: 10),
                 Card(
                   margin: const EdgeInsets.only(bottom: 20.0),
-                  color: Colors.white,
+                  // ✅ Apply whiteColor for the card background
+                  color: theme.whiteColor,
                   elevation: 2.0,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(8.0),
@@ -106,16 +92,19 @@ class _ContactScreenState extends State<ContactScreen> {
                         _buildContactInfoRow(
                           icon: Icons.access_time,
                           text: "11 September - 9h à 19h",
+                          theme: theme, // 💡 Pass the theme
                         ),
-                        const Divider(), // Divider between items
+                        const Divider(),
                         _buildContactInfoRow(
                           icon: Icons.access_time,
                           text: "12 September - 9h à 19h",
+                          theme: theme, // 💡 Pass the theme
                         ),
                         const Divider(),
                         _buildContactInfoRow(
                           icon: Icons.access_time,
                           text: "13 September - 9h à 19h",
+                          theme: theme, // 💡 Pass the theme
                         ),
                       ],
                     ),
@@ -123,17 +112,19 @@ class _ContactScreenState extends State<ContactScreen> {
                 ),
 
                 // Section 3: Contact Details
-                const Text(
+                Text(
                   'CONTACT',
                   style: TextStyle(
                     fontSize: 18,
-                    color: Color(0xff261350), // Match text color to your app theme
+                    // ✅ Apply primaryColor from the theme
+                    color: theme.primaryColor,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
                 const SizedBox(height: 10),
                 Card(
-                  color: Colors.white,
+                  // ✅ Apply whiteColor for the card background
+                  color: theme.whiteColor,
                   elevation: 2.0,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(8.0),
@@ -145,22 +136,25 @@ class _ContactScreenState extends State<ContactScreen> {
                         _buildContactInfoRow(
                           icon: Icons.phone,
                           text: "(+212) 669-576-718",
+                          theme: theme, // 💡 Pass the theme
                         ),
                         const Divider(),
                         _buildContactInfoRow(
                           icon: Icons.phone,
                           text: "(+33) 650-357-057",
+                          theme: theme, // 💡 Pass the theme
                         ),
                         const Divider(),
                         _buildContactInfoRow(
                           icon: Icons.email_outlined,
-                          text: "contact@emec-expo.com", // Example email, replace with actual
+                          text: "contact@emec-expo.com",
+                          theme: theme, // 💡 Pass the theme
                         ),
                       ],
                     ),
                   ),
                 ),
-                const SizedBox(height: 20), // Spacing at the bottom
+                const SizedBox(height: 20),
               ],
             ),
           ),
@@ -169,26 +163,32 @@ class _ContactScreenState extends State<ContactScreen> {
     );
   }
 
-  // Helper method to build a contact info row
-  Widget _buildContactInfoRow({required IconData icon, required String text}) {
+  // 💡 Updated method signature to accept an AppThemeData object
+  Widget _buildContactInfoRow({
+    required IconData icon,
+    required String text,
+    required AppThemeData theme,
+  }) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8.0),
       child: Row(
         children: <Widget>[
           Icon(
             icon,
-            size: 24, // Adjust icon size
-            color: const Color(0xff00c1c1), // Icon color
+            size: 24,
+            // ✅ Apply secondaryColor from the theme
+            color: theme.secondaryColor,
           ),
-          const SizedBox(width: 15), // Spacing between icon and text
-          Expanded( // Use Expanded to prevent overflow
+          const SizedBox(width: 15),
+          Expanded(
             child: Text(
               text,
-              style: const TextStyle(
-                fontSize: 16, // Adjust font size
-                color: Colors.black87, // Text color
+              style: TextStyle(
+                fontSize: 16,
+                // ✅ Apply blackColor with opacity
+                color: theme.blackColor.withOpacity(0.87),
               ),
-              overflow: TextOverflow.visible, // Allow text to wrap if needed
+              overflow: TextOverflow.visible,
             ),
           ),
         ],

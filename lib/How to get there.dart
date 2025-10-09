@@ -1,7 +1,10 @@
+// lib/get_there_screen.dart
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:webview_flutter/webview_flutter.dart';
-import 'package:flutter_spinkit/flutter_spinkit.dart'; // Make sure to add this package to your pubspec.yaml
+import 'package:flutter_spinkit/flutter_spinkit.dart';
+import 'package:provider/provider.dart'; // 💡 Import Provider
+import 'package:emecexpo/providers/theme_provider.dart'; // 💡 Import your ThemeProvider
 
 class GetThereScreen extends StatefulWidget {
   const GetThereScreen({Key? key}) : super(key: key);
@@ -11,15 +14,12 @@ class GetThereScreen extends StatefulWidget {
 }
 
 class _GetThereScreenState extends State<GetThereScreen> {
-  // 1. Declare a WebViewController.
   late final WebViewController _controller;
   bool isLoading = true;
 
   @override
   void initState() {
     super.initState();
-
-    // 2. Initialize the WebViewController in initState.
     _controller = WebViewController()
       ..setJavaScriptMode(JavaScriptMode.unrestricted)
       ..setNavigationDelegate(
@@ -37,8 +37,6 @@ class _GetThereScreenState extends State<GetThereScreen> {
           },
         ),
       )
-    // The provided URL might not be a valid Google Maps URL.
-    // Using a standard Google Maps embed URL is more reliable.
       ..loadRequest(Uri.parse('https://maps.google.com/maps?q=location&t=k&z=13&ie=UTF8&iwloc=&output=embed'));
   }
 
@@ -64,23 +62,29 @@ class _GetThereScreenState extends State<GetThereScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // 💡 Access the theme provider
+    final themeProvider = Provider.of<ThemeProvider>(context);
+    final theme = themeProvider.currentTheme;
+
     return WillPopScope(
       onWillPop: _onWillPop,
       child: Scaffold(
         appBar: AppBar(
           title: const Text('How to get there'),
           centerTitle: true,
-          backgroundColor: const Color(0xff261350),
-          foregroundColor: Colors.white,
+          // ✅ Use primary color from the theme
+          backgroundColor: theme.primaryColor,
+          // ✅ Use white color from the theme
+          foregroundColor: theme.whiteColor,
         ),
         body: Stack(
           children: [
-            // 3. Use the WebViewWidget and pass the controller.
             WebViewWidget(controller: _controller),
             if (isLoading)
-              const Center(
+              Center(
                 child: SpinKitThreeBounce(
-                  color: Color(0xff261350),
+                  // ✅ Use primary color from the theme
+                  color: theme.primaryColor,
                   size: 30.0,
                 ),
               ),

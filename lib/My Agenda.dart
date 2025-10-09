@@ -1,24 +1,21 @@
 // lib/my_agenda_screen.dart
 
 import 'package:animate_do/animate_do.dart';
-import 'package:emecexpo/model/agenda_model.dart'; // Ensure this path is correct
+import 'package:emecexpo/model/agenda_model.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
-import 'package:intl/date_symbol_data_local.dart'; // REQUIRED for locale data initialization
+import 'package:intl/date_symbol_data_local.dart';
+import 'package:provider/provider.dart';
+import 'package:emecexpo/providers/theme_provider.dart';
 
-// IMPORTANT: These are placeholder implementations for files assumed to exist in your project:
-// 1. 'database_helper/database_helper.dart' should contain your actual DataBaseHelperNotif.
-// 2. 'details/DetailCongress.dart' should be your screen for displaying congress event details.
+import 'model/app_theme_data.dart';
 
 // --- Placeholder for DataBaseHelperNotif (REPLACE WITH YOUR ACTUAL DB HELPER) ---
 class DataBaseHelperNotif {
   Future<List<CongressDClass>> getListAgenda() async {
-    // This is DUMMY DATA for demonstration purposes, mimicking April 2025 dates for the image.
-    // In a real app, this would fetch data from your SQLite database.
-    await Future.delayed(const Duration(milliseconds: 800)); // Simulate database/network delay
+    await Future.delayed(const Duration(milliseconds: 800));
     return [
-      // Dummy data for April 14
       CongressDClass(
         id: '1',
         title: 'Tech Innovation Summit',
@@ -39,7 +36,6 @@ class DataBaseHelperNotif {
         location: 'Exhibition Hall',
         tags: ['Networking', 'Social'],
       ),
-      // Dummy data for April 15 (with a "Diary" type item, for example)
       CongressDClass(
         id: '3',
         title: 'Workshop: Data Privacy',
@@ -62,15 +58,14 @@ class DataBaseHelperNotif {
       ),
       CongressDClass(
         id: '5',
-        title: 'Meeting with Sponsor X', // Example of a "Diary" item
+        title: 'Meeting with Sponsor X',
         discription: 'Private meeting for strategic partnership.',
         datetimeStart: '2025-04-15 14:00:00',
         datetimeEnd: '2025-04-15 15:00:00',
-        speaker: 'Nadia Boulal', // Assuming this is "diary" specific to user
+        speaker: 'Nadia Boulal',
         location: 'Private Suite 5',
-        tags: ['Meeting', 'Diary', 'Confidential'], // Add 'Diary' tag
+        tags: ['Meeting', 'Diary', 'Confidential'],
       ),
-      // Dummy data for April 16 (the selected day in the image)
       CongressDClass(
         id: '6',
         title: 'Closing Plenary Session',
@@ -83,13 +78,13 @@ class DataBaseHelperNotif {
       ),
       CongressDClass(
         id: '7',
-        title: 'Gala Dinner', // Example of "Optional" item
+        title: 'Gala Dinner',
         discription: 'Formal dinner for attendees (ticketed event).',
         datetimeStart: '2025-04-16 19:00:00',
         datetimeEnd: '2025-04-16 22:00:00',
         speaker: 'Event Organizers',
         location: 'Grand Ballroom',
-        tags: ['Social', 'Optional', 'Dinner'], // Add 'Optional' tag
+        tags: ['Social', 'Optional', 'Dinner'],
       ),
     ];
   }
@@ -98,16 +93,19 @@ class DataBaseHelperNotif {
 // --- Placeholder for DetailCongressScreen (REPLACE WITH YOUR ACTUAL DETAIL SCREEN) ---
 class DetailCongressScreen extends StatelessWidget {
   final bool check;
+  final CongressDClass? agendaItem; // Now takes an optional agenda item
 
-  const DetailCongressScreen({Key? key, required this.check}) : super(key: key);
+  const DetailCongressScreen({Key? key, required this.check, this.agendaItem}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
+    final theme = Provider.of<ThemeProvider>(context).currentTheme;
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Congress Event Details'),
-        backgroundColor: const Color(0xff261350),
-        foregroundColor: Colors.white,
+        backgroundColor: theme.primaryColor,
+        foregroundColor: theme.whiteColor,
       ),
       body: Center(
         child: Padding(
@@ -115,21 +113,27 @@ class DetailCongressScreen extends StatelessWidget {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Text(
-                'This is the detail screen for a congress event.',
-                style: TextStyle(fontSize: 18),
+              Text(
+                agendaItem?.title ?? 'No Title',
+                style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: theme.blackColor),
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 10),
               Text(
-                'The "check" parameter value is: $check',
-                style: const TextStyle(fontSize: 16, fontStyle: FontStyle.italic),
+                agendaItem?.discription ?? 'No Description',
+                style: TextStyle(fontSize: 18, color: theme.blackColor.withOpacity(0.7)),
+                textAlign: TextAlign.center,
               ),
               const SizedBox(height: 20),
-              const Text(
+              Text(
+                'The "check" parameter value is: $check',
+                style: TextStyle(fontSize: 16, fontStyle: FontStyle.italic, color: theme.blackColor),
+              ),
+              const SizedBox(height: 20),
+              Text(
                 'You can display full event details here, like extended description, map location, etc.',
                 textAlign: TextAlign.center,
-                style: TextStyle(color: Colors.grey),
+                style: TextStyle(color: theme.blackColor.withOpacity(0.5)),
               ),
             ],
           ),
@@ -148,14 +152,14 @@ class MyAgendaScreen extends StatefulWidget {
 
 class _MyAgendaScreenState extends State<MyAgendaScreen> with SingleTickerProviderStateMixin {
   List<CongressDClass> allAgendaItems = [];
-  List<CongressDClass> dailyAgendaItems = []; // Items filtered by selected date
-  List<CongressDClass> filteredAgendaItems = []; // Items filtered by date AND category
+  List<CongressDClass> dailyAgendaItems = [];
+  List<CongressDClass> filteredAgendaItems = [];
 
   List<DateTime> uniqueDays = [];
-  int _selectedDayIndex = 0; // Index for date chips
+  int _selectedDayIndex = 0;
 
   final List<String> _categories = ['All', 'Diary', 'Optional'];
-  int _selectedCategoryIndex = 0; // Index for "All", "Diary", "Optional"
+  int _selectedCategoryIndex = 0;
 
   final DataBaseHelperNotif db = DataBaseHelperNotif();
   bool isLoading = true;
@@ -163,11 +167,8 @@ class _MyAgendaScreenState extends State<MyAgendaScreen> with SingleTickerProvid
   @override
   void initState() {
     super.initState();
-    // Initialize date formatting for French locale.
-    // This is necessary when using DateFormat with a specific locale like 'fr_FR'.
-    // It's recommended to call this once in your main.dart for app-wide initialization.
     initializeDateFormatting('fr_FR', null).then((_) {
-      _loadData(); // Load data after locale initialization is complete
+      _loadData();
     });
   }
 
@@ -188,10 +189,7 @@ class _MyAgendaScreenState extends State<MyAgendaScreen> with SingleTickerProvid
 
       _extractUniqueDays();
 
-      // Set initial selected day to today if possible, otherwise first day
       if (uniqueDays.isNotEmpty) {
-        // For demonstration, let's assume current date is April 16, 2025, to match the image.
-        // In a real app, use: DateTime.now();
         DateTime simulatedNow = DateTime(2025, 4, 16);
         int todayIndex = uniqueDays.indexWhere((day) {
           return day.year == simulatedNow.year && day.month == simulatedNow.month && day.day == simulatedNow.day;
@@ -199,14 +197,13 @@ class _MyAgendaScreenState extends State<MyAgendaScreen> with SingleTickerProvid
         if (todayIndex != -1) {
           _selectedDayIndex = todayIndex;
         } else {
-          _selectedDayIndex = 0; // Default to first day if today is not in uniqueDays
+          _selectedDayIndex = 0;
         }
       }
 
-      _applyFilters(); // Apply initial filters
+      _applyFilters();
     } catch (e) {
       print("Error loading agenda data: $e");
-      // Optionally show a toast/snackbar error
     } finally {
       if (mounted) {
         setState(() {
@@ -240,7 +237,6 @@ class _MyAgendaScreenState extends State<MyAgendaScreen> with SingleTickerProvid
 
     DateTime selectedDay = uniqueDays[_selectedDayIndex];
 
-    // 1. Filter by selected date
     dailyAgendaItems = allAgendaItems.where((item) {
       try {
         DateTime itemDate = DateTime.parse(item.datetimeStart!);
@@ -252,20 +248,17 @@ class _MyAgendaScreenState extends State<MyAgendaScreen> with SingleTickerProvid
       }
     }).toList();
 
-    // 2. Further filter by selected category ("All", "Diary", "Optional")
     filteredAgendaItems = dailyAgendaItems.where((item) {
-      if (_selectedCategoryIndex == 0) { // All
+      if (_selectedCategoryIndex == 0) {
         return true;
-      } else if (_selectedCategoryIndex == 1) { // Diary
+      } else if (_selectedCategoryIndex == 1) {
         return item.tags?.contains('Diary') ?? false;
-      } else if (_selectedCategoryIndex == 2) { // Optional
+      } else if (_selectedCategoryIndex == 2) {
         return item.tags?.contains('Optional') ?? false;
       }
-      return true; // Fallback to 'All' if category is unknown
+      return true;
     }).toList();
 
-
-    // Sort items by start time for the current view
     filteredAgendaItems.sort((a, b) {
       try {
         DateTime timeA = DateTime.parse(a.datetimeStart!);
@@ -301,22 +294,29 @@ class _MyAgendaScreenState extends State<MyAgendaScreen> with SingleTickerProvid
 
   @override
   Widget build(BuildContext context) {
+    // 💡 Access the theme provider and get the current theme data.
+    final themeProvider = Provider.of<ThemeProvider>(context);
+    final theme = themeProvider.currentTheme;
+
     final double height = MediaQuery.of(context).size.height;
     final double width = MediaQuery.of(context).size.width;
 
     return WillPopScope(
       onWillPop: _onWillPop,
       child: Scaffold(
-        backgroundColor: Colors.white,
+        // ✅ Use a theme color for the background
+        backgroundColor: theme.whiteColor,
         appBar: AppBar(
           title: const Text('My Agenda'),
-          backgroundColor: const Color(0xff261350),
-          foregroundColor: Colors.white,
+          // ✅ Use a theme color for the AppBar background
+          backgroundColor: theme.primaryColor,
+          // ✅ Use a theme color for the AppBar foreground
+          foregroundColor: theme.whiteColor,
           centerTitle: true,
           elevation: 0,
           actions: [
             IconButton(
-              icon: const Icon(Icons.search),
+              icon: Icon(Icons.search, color: theme.whiteColor),
               onPressed: () {
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(content: Text('Search functionality coming soon!')),
@@ -329,19 +329,18 @@ class _MyAgendaScreenState extends State<MyAgendaScreen> with SingleTickerProvid
           children: [
             // Custom Date Selector
             Container(
-              color: const Color(0xff261350), // Matches AppBar background
+              // ✅ Use a theme color for the date selector background
+              color: theme.primaryColor,
               padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 16.0),
               child: isLoading || uniqueDays.isEmpty
-                  ? SizedBox(height: height * 0.05) // Placeholder height if no dates
+                  ? SizedBox(height: height * 0.05)
                   : Row(
                 mainAxisAlignment: MainAxisAlignment.spaceAround,
                 children: uniqueDays.asMap().entries.map((entry) {
                   int idx = entry.key;
                   DateTime date = entry.value;
                   bool isSelected = idx == _selectedDayIndex;
-                  // Format date to "DD MON." e.g., "ru-(-(."
                   String dateLabel = DateFormat('dd MMM.', 'fr_FR').format(date).toUpperCase();
-                  // Special handling for the red dot on "15 AVR." as per image
                   bool hasRedDot = date.day == 15 && date.month == 4;
 
                   return GestureDetector(
@@ -354,25 +353,28 @@ class _MyAgendaScreenState extends State<MyAgendaScreen> with SingleTickerProvid
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
                       decoration: BoxDecoration(
+                        // ✅ Use a theme color for the selected date chip
                         color: isSelected ? Colors.black.withOpacity(0.4) : Colors.transparent,
                         borderRadius: BorderRadius.circular(20.0),
                         border: Border.all(
-                          color: isSelected ? Colors.transparent : Colors.white.withOpacity(0.5),
+                          // ✅ Use a theme color for the border
+                          color: isSelected ? Colors.transparent : theme.whiteColor.withOpacity(0.5),
                           width: 1.0,
                         ),
                       ),
-                      child: Stack( // Use Stack for the red dot
+                      child: Stack(
                         alignment: Alignment.topRight,
                         children: [
                           Text(
                             dateLabel,
                             style: TextStyle(
-                              color: Colors.white,
+                              // ✅ Use a theme color for the text
+                              color: theme.whiteColor,
                               fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
                               fontSize: width * 0.038,
                             ),
                           ),
-                          if (hasRedDot && !isSelected) // Only show red dot if not selected, as in image
+                          if (hasRedDot && !isSelected)
                             Positioned(
                               right: 0,
                               top: 0,
@@ -380,6 +382,7 @@ class _MyAgendaScreenState extends State<MyAgendaScreen> with SingleTickerProvid
                                 width: 6,
                                 height: 6,
                                 decoration: const BoxDecoration(
+                                  // ✅ This color is a specific brand element, so it can remain hardcoded.
                                   color: Colors.red,
                                   shape: BoxShape.circle,
                                 ),
@@ -394,11 +397,13 @@ class _MyAgendaScreenState extends State<MyAgendaScreen> with SingleTickerProvid
             ),
             // "All", "Diary", "Optional" Sub-Tabs
             Container(
-              color: const Color(0xff261350), // Background color for the tab bar
+              // ✅ Use a theme color for the tab bar background
+              color: theme.primaryColor,
               padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
               child: Container(
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  // ✅ Use a theme color for the inner tab bar background
+                  color: theme.whiteColor,
                   borderRadius: BorderRadius.circular(10.0),
                 ),
                 child: Row(
@@ -418,13 +423,15 @@ class _MyAgendaScreenState extends State<MyAgendaScreen> with SingleTickerProvid
                           padding: const EdgeInsets.symmetric(vertical: 10.0),
                           alignment: Alignment.center,
                           decoration: BoxDecoration(
-                            color: isSelected ? const Color(0xff00c1c1) : Colors.transparent,
-                            borderRadius: BorderRadius.circular(8.0), // Rounded corners for selected tab
+                            // ✅ Use a theme color for the selected category tab
+                            color: isSelected ? theme.secondaryColor : Colors.transparent,
+                            borderRadius: BorderRadius.circular(8.0),
                           ),
                           child: Text(
                             category,
                             style: TextStyle(
-                              color: isSelected ? Colors.white : Colors.black87,
+                              // ✅ Use theme colors for the text
+                              color: isSelected ? theme.whiteColor : theme.blackColor.withOpacity(0.87),
                               fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
                               fontSize: width * 0.038,
                             ),
@@ -439,44 +446,46 @@ class _MyAgendaScreenState extends State<MyAgendaScreen> with SingleTickerProvid
             // Agenda Content Area
             Expanded(
               child: isLoading
-                  ? const Center(
-                child: CircularProgressIndicator(color: Color(0xff00c1c1)),
+                  ? Center(
+                // ✅ Use a theme color for the progress indicator
+                child: CircularProgressIndicator(color: theme.secondaryColor),
               )
                   : filteredAgendaItems.isEmpty
                   ? Center(
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    // Placeholder for the red icon from the design
                     Container(
                       width: width * 0.25,
                       height: width * 0.2,
                       decoration: BoxDecoration(
-                        color: Colors.red.withOpacity(0.2), // Light red background
-                        borderRadius: BorderRadius.circular(width * 0.1), // Half-circle bottom
-                        border: Border.all(color: Colors.red, width: 2), // Red border
+                        // ✅ Use theme colors for the placeholder icon's container
+                        color: theme.primaryColor.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(width * 0.1),
+                        border: Border.all(color: theme.primaryColor, width: 2),
                       ),
                       child: Center(
                         child: Icon(
-                          Icons.list_alt, // Closest generic icon to the design's list/agenda
+                          Icons.list_alt,
                           size: width * 0.12,
-                          color: Colors.red,
+                          // ✅ Use theme color for the icon
+                          color: theme.primaryColor,
                         ),
                       ),
                     ),
                     SizedBox(height: height * 0.03),
                     Text(
-                      "No activities", // As per design image
+                      "No activities",
                       style: TextStyle(
-                          color: Colors.black87,
+                          color: theme.blackColor.withOpacity(0.87),
                           fontSize: width * 0.045,
                           fontWeight: FontWeight.bold),
                       textAlign: TextAlign.center,
                     ),
                     SizedBox(height: height * 0.01),
                     Text(
-                      "No activities planned for this day.", // As per design image
-                      style: TextStyle(color: Colors.grey[600], fontSize: width * 0.035),
+                      "No activities planned for this day.",
+                      style: TextStyle(color: theme.blackColor.withOpacity(0.6), fontSize: width * 0.035),
                       textAlign: TextAlign.center,
                     ),
                   ],
@@ -489,7 +498,7 @@ class _MyAgendaScreenState extends State<MyAgendaScreen> with SingleTickerProvid
                   itemCount: filteredAgendaItems.length,
                   itemBuilder: (_, int position) {
                     final item = filteredAgendaItems[position];
-                    return _buildAgendaCard(item, width, height);
+                    return _buildAgendaCard(item, width, height, theme); // Pass theme
                   },
                 ),
               ),
@@ -502,14 +511,15 @@ class _MyAgendaScreenState extends State<MyAgendaScreen> with SingleTickerProvid
               const SnackBar(content: Text('Action to add new event to agenda!')),
             );
           },
-          backgroundColor: const Color(0xff261350),
-          child: const Icon(Icons.add, color: Colors.white),
+          // ✅ Use a theme color for the FAB background
+          backgroundColor: theme.primaryColor,
+          child: Icon(Icons.add, color: theme.whiteColor),
         ),
       ),
     );
   }
 
-  Widget _buildAgendaCard(CongressDClass item, double width, double height) {
+  Widget _buildAgendaCard(CongressDClass item, double width, double height, AppThemeData theme) {
     String startTime = 'N/A';
     String endTime = 'N/A';
     try {
@@ -539,6 +549,8 @@ class _MyAgendaScreenState extends State<MyAgendaScreen> with SingleTickerProvid
     }
 
     return Card(
+      // ✅ Use theme colors for the card
+      color: theme.whiteColor,
       margin: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 4.0),
       elevation: 3.0,
       shape: RoundedRectangleBorder(
@@ -549,7 +561,8 @@ class _MyAgendaScreenState extends State<MyAgendaScreen> with SingleTickerProvid
           Navigator.push(
             context,
             MaterialPageRoute(
-                builder: (context) => DetailCongressScreen(check: false,)),
+              builder: (context) => DetailCongressScreen(check: false, agendaItem: item),
+            ),
           );
         },
         child: Padding(
@@ -561,7 +574,8 @@ class _MyAgendaScreenState extends State<MyAgendaScreen> with SingleTickerProvid
                 width: width * 0.2,
                 padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 4.0),
                 decoration: BoxDecoration(
-                  color: const Color(0xff00c1c1).withOpacity(0.1),
+                  // ✅ Use theme colors for the time box
+                  color: theme.secondaryColor.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(8.0),
                 ),
                 child: Column(
@@ -570,7 +584,8 @@ class _MyAgendaScreenState extends State<MyAgendaScreen> with SingleTickerProvid
                     Text(
                       startTime,
                       style: TextStyle(
-                        color: const Color(0xff00c1c1),
+                        // ✅ Use theme color for the time text
+                        color: theme.secondaryColor,
                         fontSize: height * 0.018,
                         fontWeight: FontWeight.bold,
                       ),
@@ -578,14 +593,14 @@ class _MyAgendaScreenState extends State<MyAgendaScreen> with SingleTickerProvid
                     Text(
                       '-',
                       style: TextStyle(
-                        color: const Color(0xff00c1c1),
+                        color: theme.secondaryColor,
                         fontSize: height * 0.016,
                       ),
                     ),
                     Text(
                       endTime,
                       style: TextStyle(
-                        color: const Color(0xff00c1c1),
+                        color: theme.secondaryColor,
                         fontSize: height * 0.018,
                         fontWeight: FontWeight.bold,
                       ),
@@ -603,7 +618,8 @@ class _MyAgendaScreenState extends State<MyAgendaScreen> with SingleTickerProvid
                       style: TextStyle(
                         fontSize: height * 0.022,
                         fontWeight: FontWeight.bold,
-                        color: Colors.black87,
+                        // ✅ Use theme color for the title text
+                        color: theme.blackColor.withOpacity(0.87),
                       ),
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
@@ -614,7 +630,8 @@ class _MyAgendaScreenState extends State<MyAgendaScreen> with SingleTickerProvid
                         speakerAndLocation,
                         style: TextStyle(
                           fontSize: height * 0.016,
-                          color: Colors.grey[600],
+                          // ✅ Use theme color for the subtitle
+                          color: theme.blackColor.withOpacity(0.6),
                         ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
@@ -627,9 +644,14 @@ class _MyAgendaScreenState extends State<MyAgendaScreen> with SingleTickerProvid
                         children: item.tags!.map((tag) => Chip(
                           label: Text(
                             '#$tag',
-                            style: TextStyle(fontSize: height * 0.014, color: Colors.blueGrey[700]),
+                            style: TextStyle(
+                              fontSize: height * 0.014,
+                              // ✅ Use a theme color for the chip text
+                              color: theme.blackColor.withOpacity(0.7),
+                            ),
                           ),
-                          backgroundColor: Colors.blueGrey[50],
+                          // ✅ Use a theme color for the chip background
+                          backgroundColor: theme.blackColor.withOpacity(0.05),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(5.0),
                           ),
@@ -642,6 +664,7 @@ class _MyAgendaScreenState extends State<MyAgendaScreen> with SingleTickerProvid
               Align(
                 alignment: Alignment.topRight,
                 child: IconButton(
+                  // ✅ The star color can remain hardcoded or be a new theme property
                   icon: Icon(Icons.star_border, color: Colors.amber[700], size: width * 0.06),
                   onPressed: () {
                     ScaffoldMessenger.of(context).showSnackBar(

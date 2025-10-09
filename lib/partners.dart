@@ -1,7 +1,13 @@
+// lib/partners_screen.dart
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:animate_do/animate_do.dart';
-import 'package:emecexpo/sponsors/partnersData.dart'; // Ensure this path is correct
+import 'package:provider/provider.dart';
+import 'package:emecexpo/providers/theme_provider.dart';
+import 'package:emecexpo/sponsors/partnersData.dart';
+
+import 'model/app_theme_data.dart';
 
 class PartnersScreen extends StatefulWidget {
   const PartnersScreen({Key? key}) : super(key: key);
@@ -11,24 +17,20 @@ class PartnersScreen extends StatefulWidget {
 }
 
 class _PartnersScreenState extends State<PartnersScreen> {
-  // Use a List to hold individual partner image paths for the grid
   List<String> _partnerImagePaths = [];
 
   @override
   void initState() {
     super.initState();
-    _loadPartnersData(); // Renamed for clarity
+    _loadPartnersData();
   }
 
   void _loadPartnersData() {
-    // Flatten the PARTNERS_DATA into a single list of image paths.
-    // Assuming PARTNERS_DATA is a List of Maps with 'image1' and potentially 'image2' keys.
     List<String> paths = [];
     for (var post in PARTNERS_DATA) {
       if (post.containsKey("image1") && post["image1"] != null) {
         paths.add(post["image1"] as String);
       }
-      // Only add image2 if it exists and is not the "1" placeholder
       if (post.containsKey("image2") && post["image2"] != null && post["image2"].toString() != "1") {
         paths.add(post["image2"] as String);
       }
@@ -41,7 +43,7 @@ class _PartnersScreenState extends State<PartnersScreen> {
   Future<bool> _onWillPop() async {
     return (await showDialog(
       context: context,
-      builder: (context) => AlertDialog( // Changed to AlertDialog for consistency
+      builder: (context) => AlertDialog(
         title: const Text('Êtes-vous sûr'),
         content: const Text('Voulez-vous quitter cette application'),
         actions: <Widget>[
@@ -60,33 +62,31 @@ class _PartnersScreenState extends State<PartnersScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // double height = MediaQuery.of(context).size.height; // Can be used for responsive sizing if needed
-    // double width = MediaQuery.of(context).size.width; // Can be used for responsive sizing if needed
+    // Access the current theme data from the provider
+    final theme = Provider.of<ThemeProvider>(context).currentTheme;
 
     return WillPopScope(
       onWillPop: _onWillPop,
       child: Scaffold(
-        backgroundColor: Colors.white, // Overall white background
+        backgroundColor: theme.whiteColor,
         appBar: AppBar(
-          backgroundColor: const Color(0xFF261350), // Dark blue background
-          elevation: 0, // No shadow
-          title: const Text(
-            'Partners', // Title
-            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+          backgroundColor: theme.primaryColor,
+          elevation: 0,
+          title: Text(
+            'Partners',
+            style: TextStyle(color: theme.whiteColor, fontWeight: FontWeight.bold),
           ),
           centerTitle: true,
-          // The actions like filter/star are not present in the partner.jpeg image for this screen.
-          // Removed them to match the provided image.
           bottom: PreferredSize(
-            preferredSize: const Size.fromHeight(50.0), // Height for the red banner
+            preferredSize: const Size.fromHeight(50.0),
             child: Container(
-              color: Colors.red, // Red background for "INSTITUTIONAL PARTNERS"
+              color: Colors.red, // This remains hardcoded as it represents a specific banner color
               height: 50.0,
               alignment: Alignment.center,
-              child: const Text(
-                'INSTITUTIONAL PARTNERS', // Text as seen in the image
+              child: Text(
+                'INSTITUTIONAL PARTNERS',
                 style: TextStyle(
-                  color: Colors.white,
+                  color: theme.whiteColor,
                   fontWeight: FontWeight.bold,
                   fontSize: 18.0,
                 ),
@@ -97,22 +97,22 @@ class _PartnersScreenState extends State<PartnersScreen> {
         body: FadeInDown(
           duration: const Duration(milliseconds: 500),
           child: _partnerImagePaths.isEmpty
-              ? const Center(
+              ? Center(
             child: CircularProgressIndicator(
-              valueColor: AlwaysStoppedAnimation<Color>(Color(0xff00c1c1)),
+              valueColor: AlwaysStoppedAnimation<Color>(theme.secondaryColor),
             ),
           )
               : GridView.builder(
-            padding: const EdgeInsets.all(10.0), // Padding around the grid
+            padding: const EdgeInsets.all(10.0),
             gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 2, // 2 columns as shown in the image
-              crossAxisSpacing: 10.0, // Horizontal spacing between grid items
-              mainAxisSpacing: 10.0, // Vertical spacing between grid items
-              childAspectRatio: 1.2, // Adjust aspect ratio to fit content nicely
+              crossAxisCount: 2,
+              crossAxisSpacing: 10.0,
+              mainAxisSpacing: 10.0,
+              childAspectRatio: 1.2,
             ),
             itemCount: _partnerImagePaths.length,
             itemBuilder: (context, index) {
-              return _buildPartnerGridItem(_partnerImagePaths[index]);
+              return _buildPartnerGridItem(_partnerImagePaths[index], theme);
             },
           ),
         ),
@@ -121,25 +121,25 @@ class _PartnersScreenState extends State<PartnersScreen> {
   }
 
   // Helper widget to build each partner item in the grid
-  Widget _buildPartnerGridItem(String imagePath) {
+  Widget _buildPartnerGridItem(String imagePath, AppThemeData theme) {
     return Card(
-      color: Colors.white,
-      elevation: 3.0, // Slight shadow for depth, similar to image
+      color: theme.whiteColor,
+      elevation: 3.0,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(10.0), // Rounded corners for the card
+        borderRadius: BorderRadius.circular(10.0),
       ),
       child: Padding(
         padding: const EdgeInsets.all(8.0),
         child: Center(
           child: Image.asset(
             imagePath,
-            fit: BoxFit.contain, // Use BoxFit.contain to ensure the whole logo is visible
+            fit: BoxFit.contain,
             errorBuilder: (context, error, stackTrace) {
-              return const Icon(
+              return Icon(
                 Icons.broken_image,
                 color: Colors.grey,
                 size: 50,
-              ); // Placeholder for broken images
+              );
             },
           ),
         ),

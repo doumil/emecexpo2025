@@ -4,9 +4,14 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_spinkit/flutter_spinkit.dart';
-import 'details/CongressMenu.dart';
-import 'model/congress_model.dart'; // Make sure this path is correct
+import 'package:provider/provider.dart'; // Import Provider
 import 'package:http/http.dart' as http; // Kept in case you reactivate API calls
+
+// Import your providers and models
+import 'package:emecexpo/providers/theme_provider.dart'; // 💡 Import ThemeProvider
+import 'details/CongressMenu.dart';
+import 'model/app_theme_data.dart';
+import 'model/congress_model.dart';
 
 class CongressScreen extends StatefulWidget {
   const CongressScreen({Key? key}) : super(key: key);
@@ -16,10 +21,10 @@ class CongressScreen extends StatefulWidget {
 }
 
 class _CongressScreenState extends State<CongressScreen> {
-  List<CongressClass> _allSessions = []; // Master list of all sessions
-  List<CongressClass> litems = []; // List of sessions to display (filtered)
+  List<CongressClass> _allSessions = [];
+  List<CongressClass> litems = [];
   bool isLoading = true;
-  int _selectedDateIndex = 2; // Default to 16 AVR, as in the image
+  int _selectedDateIndex = 2;
 
   @override
   void initState() {
@@ -27,27 +32,23 @@ class _CongressScreenState extends State<CongressScreen> {
     _loadData();
   }
 
-  // Helper to map date index to the full date string used in CongressClass
   String _getDateStringFromIndex(int index) {
     switch (index) {
-      case 0: return "lun., 14 avr. 2025"; // Monday, April 14th, 2025
-      case 1: return "mar., 15 avr. 2025"; // Tuesday, April 15th, 2025
-      case 2: return "mer., 16 avr. 2025"; // Wednesday, April 16th, 2025
-      default: return ""; // Should not happen
+      case 0: return "lun., 14 avr. 2025";
+      case 1: return "mar., 15 avr. 2025";
+      case 2: return "mer., 16 avr. 2025";
+      default: return "";
     }
   }
 
-  // Filters the _allSessions list based on the _selectedDateIndex
   void _updateFilteredSessions() {
     String selectedDate = _getDateStringFromIndex(_selectedDateIndex);
     litems = _allSessions.where((session) => session.date == selectedDate).toList();
   }
 
   _loadData() async {
-    // Clear any existing data
     _allSessions.clear();
 
-    // --- Dummy Data for 14th April (3 sessions) ---
     _allSessions.add(
       CongressClass(
         id: 101,
@@ -87,9 +88,6 @@ class _CongressScreenState extends State<CongressScreen> {
         speakers: [Speaker(name: "Dr. Alex Lee", imageUrl: "assets/speakers/speaker5.png")],
       ),
     );
-
-
-    // --- Dummy Data for 15th April (1 session) ---
     _allSessions.add(
       CongressClass(
         id: 201,
@@ -103,13 +101,11 @@ class _CongressScreenState extends State<CongressScreen> {
         speakers: [Speaker(name: "Alice Brown", imageUrl: "assets/speakers/speaker3.png")],
       ),
     );
-
-    // --- Dummy Data for 16th April (2 sessions) ---
     _allSessions.add(
       CongressClass(
         id: 1,
         title: "Opening | Welcome Address",
-        isSessionOver: true, // Example of "Session is over"
+        isSessionOver: true,
         date: "mer., 16 avr. 2025",
         time: "10:15 - 10:20 | Africa(Casablanca time)",
         location: "GITEX Africa/Ai Stage",
@@ -137,7 +133,6 @@ class _CongressScreenState extends State<CongressScreen> {
       ),
     );
 
-    // Initialize filtered sessions with the default selected date (16th April)
     _updateFilteredSessions();
 
     if (mounted) {
@@ -170,21 +165,34 @@ class _CongressScreenState extends State<CongressScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // 💡 Access the theme provider
+    final themeProvider = Provider.of<ThemeProvider>(context);
+    final theme = themeProvider.currentTheme;
+
     return WillPopScope(
       onWillPop: _onWillPop,
       child: Scaffold(
+        // ✅ Apply a light background from the theme
         backgroundColor: Colors.grey[100],
         appBar: AppBar(
-          title: const Text(
+          title: Text(
             "Conferences",
-            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+            style: TextStyle(
+              // ✅ Use whiteColor from theme
+                color: theme.whiteColor,
+                fontWeight: FontWeight.bold),
           ),
-          backgroundColor: const Color(0xff261350),
+          // ✅ Use primaryColor from theme
+          backgroundColor: theme.primaryColor,
           elevation: 0,
           centerTitle: true,
           actions: [
             IconButton(
-              icon: const Icon(Icons.filter_list, color: Colors.white),
+              icon: Icon(
+                  Icons.filter_list,
+                  // ✅ Use whiteColor from theme
+                  color: theme.whiteColor
+              ),
               onPressed: () {
                 print("Filter button pressed");
               },
@@ -194,7 +202,8 @@ class _CongressScreenState extends State<CongressScreen> {
         body: isLoading
             ? Center(
           child: SpinKitThreeBounce(
-            color: const Color(0xff00c1c1),
+            // ✅ Use secondaryColor from theme
+            color: theme.secondaryColor,
             size: 30.0,
           ),
         )
@@ -202,44 +211,49 @@ class _CongressScreenState extends State<CongressScreen> {
           children: [
             // --- Search Bar ---
             Container(
-              color: const Color(0xff261350),
+              // ✅ Use primaryColor from theme
+              color: theme.primaryColor,
               padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 10.0),
               child: TextField(
                 decoration: InputDecoration(
+                  // ✅ Use whiteColor from theme with opacity
                   hintText: 'Recherche',
-                  hintStyle: TextStyle(color: Colors.grey[400]),
-                  prefixIcon: Icon(Icons.search, color: Colors.grey[400]),
+                  hintStyle: TextStyle(color: theme.whiteColor.withOpacity(0.6)),
+                  prefixIcon: Icon(Icons.search, color: theme.whiteColor.withOpacity(0.6)),
                   filled: true,
-                  fillColor: Colors.white.withOpacity(0.2),
+                  fillColor: theme.whiteColor.withOpacity(0.2),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(10.0),
                     borderSide: BorderSide.none,
                   ),
                   contentPadding: const EdgeInsets.symmetric(vertical: 0, horizontal: 10),
                 ),
-                style: const TextStyle(color: Colors.white),
+                // ✅ Use whiteColor from theme
+                style: TextStyle(color: theme.whiteColor),
               ),
             ),
             // --- Date Selection ---
             Container(
-              color: const Color(0xff261350),
+              // ✅ Use primaryColor from theme
+              color: theme.primaryColor,
               padding: const EdgeInsets.symmetric(vertical: 10.0),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceAround,
                 children: [
-                  _buildDateSelector(0, "14", "AVR."),
-                  _buildDateSelector(1, "15", "AVR."),
-                  _buildDateSelector(2, "16", "AVR."),
+                  _buildDateSelector(0, "14", "AVR.", theme as ThemeProvider),
+                  _buildDateSelector(1, "15", "AVR.", theme as ThemeProvider),
+                  _buildDateSelector(2, "16", "AVR.", theme as ThemeProvider),
                 ],
               ),
             ),
             // --- Main Content (Sessions and Speakers) ---
             Expanded(
               child: ListView.builder(
-                itemCount: litems.length, // Now displays the filtered list
+                itemCount: litems.length,
                 itemBuilder: (context, index) {
-                  final session = litems[index]; // Get session from filtered list
-                  return _buildSessionCard(session);
+                  final session = litems[index];
+                  // 💡 Pass the theme provider to the card builder
+                  return _buildSessionCard(session, theme);
                 },
               ),
             ),
@@ -249,23 +263,27 @@ class _CongressScreenState extends State<CongressScreen> {
     );
   }
 
-  Widget _buildDateSelector(int index, String day, String month) {
+  // 💡 Updated method signature to accept a ThemeProvider
+  Widget _buildDateSelector(int index, String day, String month, ThemeProvider themeProvider) {
     bool isSelected = _selectedDateIndex == index;
+    final theme = themeProvider.currentTheme;
+
     return GestureDetector(
       onTap: () {
         setState(() {
           _selectedDateIndex = index;
-          _updateFilteredSessions(); // Filter sessions when a new day is selected
+          _updateFilteredSessions();
         });
       },
       child: Container(
         width: 80,
         padding: const EdgeInsets.symmetric(vertical: 8.0),
         decoration: BoxDecoration(
-          color: isSelected ? Colors.white : Colors.transparent,
+          // ✅ Use whiteColor or primaryColor based on selection
+          color: isSelected ? theme.whiteColor : Colors.transparent,
           borderRadius: BorderRadius.circular(10.0),
           border: Border.all(
-            color: isSelected ? Colors.transparent : Colors.white.withOpacity(0.5),
+            color: isSelected ? Colors.transparent : theme.whiteColor.withOpacity(0.5),
             width: 1,
           ),
         ),
@@ -274,7 +292,8 @@ class _CongressScreenState extends State<CongressScreen> {
             Text(
               day,
               style: TextStyle(
-                color: isSelected ? const Color(0xff261350) : Colors.white,
+                // ✅ Use primaryColor or whiteColor based on selection
+                color: isSelected ? theme.primaryColor : theme.whiteColor,
                 fontSize: 22,
                 fontWeight: FontWeight.bold,
               ),
@@ -282,7 +301,8 @@ class _CongressScreenState extends State<CongressScreen> {
             Text(
               month,
               style: TextStyle(
-                color: isSelected ? const Color(0xff261350) : Colors.white,
+                // ✅ Use primaryColor or whiteColor based on selection
+                color: isSelected ? theme.primaryColor : theme.whiteColor,
                 fontSize: 14,
               ),
             ),
@@ -292,10 +312,12 @@ class _CongressScreenState extends State<CongressScreen> {
     );
   }
 
-  Widget _buildSessionCard(CongressClass session) {
+  // 💡 Updated method signature to accept a ThemeProvider
+  Widget _buildSessionCard(CongressClass session, AppThemeData theme) {
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-      color: Colors.white,
+      // ✅ Use whiteColor from theme
+      color: theme.whiteColor,
       elevation: 2.0,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(10.0),
@@ -312,11 +334,11 @@ class _CongressScreenState extends State<CongressScreen> {
                   children: [
                     const Icon(Icons.location_on_outlined, size: 18, color: Colors.grey),
                     const SizedBox(width: 5),
-                    Expanded( // Use Expanded to prevent overflow
+                    Expanded(
                       child: Text(
                         session.location!,
                         style: const TextStyle(color: Colors.grey, fontSize: 14),
-                        overflow: TextOverflow.ellipsis, // Add ellipsis for long text
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ),
                   ],
@@ -324,17 +346,19 @@ class _CongressScreenState extends State<CongressScreen> {
               ),
             Text(
               session.title,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.bold,
-                color: Colors.black,
+                // ✅ Use blackColor from theme
+                color: theme.blackColor,
               ),
             ),
             const SizedBox(height: 5),
             if (session.isSessionOver)
-              const Text(
+            // ✅ Use redColor from theme
+              Text(
                 'Session is over',
-                style: TextStyle(color: Colors.red, fontSize: 14, fontWeight: FontWeight.bold),
+                style: TextStyle(color: theme.redColor, fontSize: 14, fontWeight: FontWeight.bold),
               )
             else ...[
               if (session.date != null)
@@ -358,11 +382,11 @@ class _CongressScreenState extends State<CongressScreen> {
                     children: [
                       const Icon(Icons.schedule, size: 18, color: Colors.grey),
                       const SizedBox(width: 5),
-                      Expanded( // Use Expanded to prevent overflow
+                      Expanded(
                         child: Text(
                           session.time!,
                           style: const TextStyle(color: Colors.grey, fontSize: 14),
-                          overflow: TextOverflow.ellipsis, // Add ellipsis for long text
+                          overflow: TextOverflow.ellipsis,
                         ),
                       ),
                     ],
@@ -375,11 +399,11 @@ class _CongressScreenState extends State<CongressScreen> {
                     children: [
                       const Icon(Icons.place, size: 18, color: Colors.grey),
                       const SizedBox(width: 5),
-                      Expanded( // Use Expanded to prevent overflow
+                      Expanded(
                         child: Text(
                           session.stage!,
                           style: const TextStyle(color: Colors.grey, fontSize: 14),
-                          overflow: TextOverflow.ellipsis, // Add ellipsis for long text
+                          overflow: TextOverflow.ellipsis,
                         ),
                       ),
                     ],
@@ -395,24 +419,29 @@ class _CongressScreenState extends State<CongressScreen> {
                   return Container(
                     padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
                     decoration: BoxDecoration(
-                      color: Colors.grey[200],
+                      // ✅ Use blackColor with opacity
+                      color: theme.blackColor.withOpacity(0.1),
                       borderRadius: BorderRadius.circular(5.0),
                     ),
                     child: Text(
                       tag,
-                      style: const TextStyle(fontSize: 12, color: Colors.black54),
+                      style: TextStyle(
+                          fontSize: 12,
+                          // ✅ Use blackColor
+                          color: theme.blackColor),
                     ),
                   );
                 }).toList(),
               ),
             if (session.speakers != null && session.speakers!.isNotEmpty) ...[
               const SizedBox(height: 15),
-              const Text(
+              Text(
                 'Speakers',
                 style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.bold,
-                  color: Colors.black87,
+                  // ✅ Use blackColor with opacity
+                  color: theme.blackColor.withOpacity(0.87),
                 ),
               ),
               const SizedBox(height: 10),
@@ -437,7 +466,10 @@ class _CongressScreenState extends State<CongressScreen> {
                           const SizedBox(height: 5),
                           Text(
                             speaker.name,
-                            style: const TextStyle(fontSize: 12, color: Colors.black54),
+                            style: TextStyle(
+                                fontSize: 12,
+                                // ✅ Use blackColor with opacity
+                                color: theme.blackColor.withOpacity(0.54)),
                             textAlign: TextAlign.center,
                           ),
                         ],

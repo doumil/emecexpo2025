@@ -1,4 +1,5 @@
 // lib/providers/menu_provider.dart
+
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
@@ -18,9 +19,9 @@ class MenuConfig {
   final bool sponsors;
   final bool partners;
   final bool badge;
-  final bool products;
-  final bool congresses;
-  final bool networking; // New field
+  final bool products;   // 💡 Safety check needed for this key
+  final bool congresses; // 💡 Safety check needed for this key
+  final bool networking; // 💡 Safety check needed for this key
 
   MenuConfig({
     required this.title,
@@ -42,23 +43,30 @@ class MenuConfig {
   });
 
   factory MenuConfig.fromJson(Map<String, dynamic> json) {
+    // Safely extract the inner 'data' map
+    final data = json['data'] as Map<String, dynamic>? ?? {};
+
+    // Use .containsKey and safe type casting, defaulting to false
+    // if the key is missing or the value is not a boolean.
     return MenuConfig(
-      title: json['data']['title'] as bool,
-      description: json['data']['description'] as bool,
-      floorPlan: json['data']['floor_plan'] as bool,
-      exhibitors: json['data']['exhibitors'] as bool,
-      speakers: json['data']['speakers'] as bool,
-      program: json['data']['program'] as bool,
-      venue: json['data']['venue'] as bool,
-      dates: json['data']['dates'] as bool,
-      logo: json['data']['logo'] as bool,
-      organizer: json['data']['organizer'] as bool,
-      sponsors: json['data']['sponsors'] as bool,
-      partners: json['data']['partners'] as bool,
-      badge: json['data']['badge'] as bool,
-      products: json['data']['products'] as bool,
-      congresses: json['data']['congresses'] as bool,
-      networking: json['data']['networking'] as bool,
+      title: data['title'] == true,
+      description: data['description'] == true,
+      floorPlan: data['floor_plan'] == true,
+      exhibitors: data['exhibitors'] == true,
+      speakers: data['speakers'] == true,
+      program: data['program'] == true,
+      venue: data['venue'] == true,
+      dates: data['dates'] == true,
+      logo: data['logo'] == true,
+      organizer: data['organizer'] == true,
+      sponsors: data['sponsors'] == true,
+      partners: data['partners'] == true,
+      badge: data['badge'] == true,
+
+      // 💡 These fields are often missing or explicitly false, so they must default to false.
+      products: data['products'] == true,
+      congresses: data['congresses'] == true,
+      networking: data['networking'] == true,
     );
   }
 }
@@ -70,7 +78,8 @@ class MenuProvider with ChangeNotifier {
   MenuConfig? get menuConfig => _menuConfig;
 
   Future<void> fetchMenuConfig() async {
-    const url = 'https://your-api.com/menu-config';
+    // 💡 UPDATED API URL
+    const url = 'https://buzzevents.co/api/events/10/app-settings';
 
     try {
       final response = await http.get(Uri.parse(url));
@@ -79,28 +88,28 @@ class MenuProvider with ChangeNotifier {
         _menuConfig = MenuConfig.fromJson(data);
         notifyListeners();
       } else {
-        throw Exception('Failed to load menu config');
+        throw Exception('Failed to load menu config. Status: ${response.statusCode}');
       }
     } catch (e) {
       debugPrint('Error fetching menu config: $e');
-      // Set default values if API call fails
+      // Set default values if API call fails (recommended fallback)
       _menuConfig = MenuConfig(
         title: true,
         description: true,
-        floorPlan: true,
-        exhibitors: true,
-        speakers: true,
-        program: true,
-        venue: true,
-        dates: true,
-        logo: true,
-        organizer: true,
-        sponsors: true,
-        partners: true,
+        floorPlan: false,
+        exhibitors: false,
+        speakers: false,
+        program: false,
+        venue: false,
+        dates: false,
+        logo: false,
+        organizer: false,
+        sponsors: false,
+        partners: false,
         badge: false,
-        products: true,
-        congresses: true,
-        networking: true,
+        products: false,
+        congresses: false,
+        networking: false,
       );
       notifyListeners();
     }

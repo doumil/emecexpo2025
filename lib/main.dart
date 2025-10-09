@@ -55,7 +55,30 @@ import 'package:emecexpo/meeting_ratings_screen.dart';
 import 'package:emecexpo/providers/theme_provider.dart';
 import 'package:emecexpo/providers/home_provider.dart';
 import 'package:emecexpo/providers/menu_provider.dart';
-import 'package:emecexpo/models/app_theme_data.dart';
+// Dull Page Placeholder
+class DullPage extends StatelessWidget {
+  final String title;
+
+  const DullPage({
+    Key? key,
+    this.title = 'Dull Page',
+  }) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(title),
+      ),
+      body: const Center(
+        child: Text(
+          'This page is a work in progress.',
+          style: TextStyle(fontSize: 18),
+        ),
+      ),
+    );
+  }
+}
 
 ValueNotifier<int> notificationCountNotifier = ValueNotifier(0);
 List<NotifClass> globalLitems = [];
@@ -99,15 +122,12 @@ void main() async {
   runApp(
     MultiProvider(
       providers: [
-        // 1. Provide the ThemeProvider and fetch the theme immediately
         ChangeNotifierProvider(
           create: (_) => ThemeProvider()..fetchThemeFromApi(),
         ),
-        // 2. Provide the MenuProvider and fetch the menu config
         ChangeNotifierProvider(
           create: (_) => MenuProvider()..fetchMenuConfig(),
         ),
-        // 3. Provide other necessary providers
         ChangeNotifierProvider(create: (_) => HomeProvider()),
       ],
       child: MyApp(initialScreen: initialScreen),
@@ -121,21 +141,15 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Access the ThemeProvider from the widget tree
     final themeProvider = Provider.of<ThemeProvider>(context);
-
-    // ✅ Print the secondary color to the console for debugging
-    debugPrint('Secondary Color: ${themeProvider.currentTheme.secondaryColor}');
 
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      // Use the colors from the ThemeProvider for the app's theme
+      title: 'EMEC EXPO',
       theme: ThemeData(
         primaryColor: themeProvider.currentTheme.primaryColor,
         hintColor: themeProvider.currentTheme.secondaryColor,
-        // Set other properties based on your dynamic theme as needed
         scaffoldBackgroundColor: themeProvider.currentTheme.whiteColor,
-        // Example of applying the theme colors to the AppBar
         appBarTheme: AppBarTheme(
           backgroundColor: themeProvider.currentTheme.primaryColor,
           titleTextStyle: TextStyle(
@@ -153,9 +167,6 @@ class MyApp extends StatelessWidget {
   }
 }
 
-// Your WelcomPage and other widget code goes here,
-// as you've previously defined it.
-// The widgets will now automatically have access to the theme via Provider.of(context).
 enum DrawerSections {
   home,
   myAgenda,
@@ -285,14 +296,13 @@ class _WelcomPageState extends State<WelcomPage> {
 
   @override
   Widget build(BuildContext context) {
-    // Get an instance of your ThemeProvider and MenuProvider
     final themeProvider = Provider.of<ThemeProvider>(context);
     final menuProvider = Provider.of<MenuProvider>(context);
 
     Widget container;
     if (currentPage == DrawerSections.home) {
       container = HomeScreen(user: _loggedInUser);
-    } else if (currentPage == DrawerSections.networking) {
+   } else if (currentPage == DrawerSections.networking) {
       container = NetworkinScreen();
     } else if (currentPage == DrawerSections.myAgenda) {
       container = MyAgendaScreen();
@@ -344,15 +354,18 @@ class _WelcomPageState extends State<WelcomPage> {
       container = const ConversationsScreen();
     } else if (currentPage == DrawerSections.meetingRatings) {
       container = const MeetingRatingsScreen();
-    } else if (currentPage == DrawerSections.products) {
-      container = ProductScreen();
-    } else if (currentPage == DrawerSections.congresses) {
+    }
+    // else if (currentPage == DrawerSections.products)
+    // {
+    //   container = ProductScreen();
+    // }
+    else if (currentPage == DrawerSections.congresses) {
       container = CongressScreen();
     } else if (currentPage == DrawerSections.sponsors) {
       container = SupportingPScreen();
-    }
-    else {
-      container = HomeScreen(user: _loggedInUser);
+    } else {
+      // ✅ Using the dull page as a fallback for any unimplemented sections
+      container = const DullPage(title: 'Page Not Found');
     }
 
     return Scaffold(
@@ -363,10 +376,10 @@ class _WelcomPageState extends State<WelcomPage> {
           child: Container(
             color: themeProvider.currentTheme.primaryColor,
             child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                MyHeaderDrawer(user: _loggedInUser,),
+                MyHeaderDrawer(user: _loggedInUser),
                 const SizedBox(height: 5.0),
-                // Use a Consumer to rebuild the drawer list based on API data
                 Consumer<MenuProvider>(
                   builder: (context, menuProvider, child) {
                     final menuConfig = menuProvider.menuConfig;
@@ -384,7 +397,7 @@ class _WelcomPageState extends State<WelcomPage> {
       bottomNavigationBar: BottomNavigationBar(
         items: <BottomNavigationBarItem>[
           BottomNavigationBarItem(
-            icon: const Icon(Icons.home), // Use static icon here
+            icon: const Icon(Icons.home),
             label: 'Home',
           ),
           BottomNavigationBarItem(
@@ -402,7 +415,7 @@ class _WelcomPageState extends State<WelcomPage> {
                     padding: const EdgeInsets.all(5),
                   ),
                   position: badges.BadgePosition.topEnd(top: -10, end: -12),
-                  child: const Icon(Icons.notifications), // Use static icon here
+                  child: const Icon(Icons.notifications),
                 );
               },
             ),
@@ -442,14 +455,14 @@ class _WelcomPageState extends State<WelcomPage> {
           menuItem(1, "Home", Icons.home, currentPage == DrawerSections.home),
           menuItem(21, "Notifications", Icons.notifications, currentPage == DrawerSections.notifications),
 
-          // Use conditional rendering based on the menu type from the API
           if (menuConfig.exhibitors) ...[
-            const Padding(
-              padding: EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+            // ✅ FIX: Removed `const`
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
               child: Text(
                 "EVENT INFORMATION",
                 style: TextStyle(
-                  color: Colors.white70,
+                  color: theme.currentTheme.whiteColor.withOpacity(0.7),
                   fontSize: 14,
                   fontWeight: FontWeight.bold,
                 ),
@@ -460,8 +473,8 @@ class _WelcomPageState extends State<WelcomPage> {
               menuItem(11, "Floor Plan", Icons.location_on_outlined, currentPage == DrawerSections.eFP),
             if (menuConfig.exhibitors)
               menuItem(7, "Exhibitors", Icons.store_mall_directory_outlined, currentPage == DrawerSections.exhibitors),
-            if (menuConfig.products)
-              menuItem(25, "Products", Icons.category_outlined, currentPage == DrawerSections.products),
+/*            if (menuConfig.products)
+              menuItem(25, "Products", Icons.category_outlined, currentPage == DrawerSections.products),*/
             if (menuConfig.speakers)
               menuItem(4, "Speakers", Icons.speaker_notes_outlined, currentPage == DrawerSections.speakers),
             if (menuConfig.congresses)
@@ -474,19 +487,20 @@ class _WelcomPageState extends State<WelcomPage> {
 
           const Divider(color: Colors.white24, height: 20),
 
-          const Padding(
-            padding: EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+          // ✅ FIX: Removed `const`
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
             child: Text(
               "ACCOUNT",
               style: TextStyle(
-                color: Colors.white70,
+                color: theme.currentTheme.whiteColor.withOpacity(0.7),
                 fontSize: 14,
                 fontWeight: FontWeight.bold,
               ),
             ),
           ),
           menuItem(28, "My Profile", Icons.person_outline, currentPage == DrawerSections.myProfile),
-          if (menuConfig.badge) // Conditionally show based on API
+          if (menuConfig.badge)
             menuItem(29, "My Badge", FontAwesomeIcons.idBadge, currentPage == DrawerSections.myBadge),
           menuItem(30, "Favourites", Icons.favorite_outline, currentPage == DrawerSections.favourites),
           menuItem(31, "Scanned Badges", Icons.qr_code_scanner, currentPage == DrawerSections.scannedBadges),
@@ -507,7 +521,6 @@ class _WelcomPageState extends State<WelcomPage> {
   }
 
   Widget menuItem(int id, String title, IconData icon, bool selected) {
-    // Access the theme within the menuItem function
     final theme = Provider.of<ThemeProvider>(context, listen: false);
 
     return Material(
@@ -517,44 +530,120 @@ class _WelcomPageState extends State<WelcomPage> {
           Navigator.pop(context);
           setState(() {
             switch (id) {
-              case 1: currentPage = DrawerSections.home; break;
-              case 2: currentPage = DrawerSections.networking; break;
-              case 3: currentPage = DrawerSections.congress; break;
-              case 4: currentPage = DrawerSections.speakers; break;
-              case 6: currentPage = DrawerSections.partners; break;
-              case 7: currentPage = DrawerSections.exhibitors; break;
-              case 11: currentPage = DrawerSections.eFP; break;
-              case 12: currentPage = DrawerSections.supportingP; break;
-              case 14: currentPage = DrawerSections.socialM; break;
-              case 15: currentPage = DrawerSections.contact; break;
-              case 18: currentPage = DrawerSections.getThere; break;
-              case 19: currentPage = DrawerSections.myAgenda; break;
-              case 21: currentPage = DrawerSections.notifications; notificationCountNotifier.value = 0; break;
-              case 22: currentPage = DrawerSections.settings; break;
-              case 24: currentPage = DrawerSections.appUserGuide; break;
-              case 25: currentPage = DrawerSections.products; break;
-              case 26: currentPage = DrawerSections.congresses; break;
-              case 27: currentPage = DrawerSections.sponsors; break;
-              case 28: currentPage = DrawerSections.myProfile; break;
-              case 29: currentPage = DrawerSections.myBadge; break;
-              case 30: currentPage = DrawerSections.favourites; break;
-              case 31: currentPage = DrawerSections.scannedBadges; break;
-              case 32: currentPage = DrawerSections.messages; break;
-              case 33: currentPage = DrawerSections.meetingRatings; break;
-              case 5: currentPage = DrawerSections.officialEvents; break;
-              case 8: currentPage = DrawerSections.product; break;
-              case 9: currentPage = DrawerSections.act; break;
-              case 10: currentPage = DrawerSections.news; break;
-              case 13: currentPage = DrawerSections.mediaP; break;
-              case 16: currentPage = DrawerSections.information; break;
-              case 17: currentPage = DrawerSections.schedule; break;
-              case 20: currentPage = DrawerSections.business; break;
-              case 23: currentPage = DrawerSections.myAgenda; break;
-              case 3: currentPage = DrawerSections.congressmenu; break;
-              case 7: currentPage = DrawerSections.detailexhib; break;
-              case 7: currentPage = DrawerSections.detailcongress; break;
-              case 8: currentPage = DrawerSections.DetailNetworkin; break;
-              default: currentPage = DrawerSections.home;
+              case 1:
+                currentPage = DrawerSections.home;
+                break;
+              case 2:
+                currentPage = DrawerSections.networking;
+                break;
+              case 3:
+                currentPage = DrawerSections.congress;
+                break;
+              case 4:
+                currentPage = DrawerSections.speakers;
+                break;
+              case 6:
+                currentPage = DrawerSections.partners;
+                break;
+              case 7:
+                currentPage = DrawerSections.exhibitors;
+                break;
+              case 11:
+                currentPage = DrawerSections.eFP;
+                break;
+              case 12:
+                currentPage = DrawerSections.supportingP;
+                break;
+              case 14:
+                currentPage = DrawerSections.socialM;
+                break;
+              case 15:
+                currentPage = DrawerSections.contact;
+                break;
+              case 18:
+                currentPage = DrawerSections.getThere;
+                break;
+              case 19:
+                currentPage = DrawerSections.myAgenda;
+                break;
+              case 21:
+                currentPage = DrawerSections.notifications;
+                notificationCountNotifier.value = 0;
+                break;
+              case 22:
+                currentPage = DrawerSections.settings;
+                break;
+              case 24:
+                currentPage = DrawerSections.appUserGuide;
+                break;
+              case 25:
+                currentPage = DrawerSections.products;
+                break;
+              case 26:
+                currentPage = DrawerSections.congresses;
+                break;
+              case 27:
+                currentPage = DrawerSections.sponsors;
+                break;
+              case 28:
+                currentPage = DrawerSections.myProfile;
+                break;
+              case 29:
+                currentPage = DrawerSections.myBadge;
+                break;
+              case 30:
+                currentPage = DrawerSections.favourites;
+                break;
+              case 31:
+                currentPage = DrawerSections.scannedBadges;
+                break;
+              case 32:
+                currentPage = DrawerSections.messages;
+                break;
+              case 33:
+                currentPage = DrawerSections.meetingRatings;
+                break;
+              case 5:
+                currentPage = DrawerSections.officialEvents;
+                break;
+              case 8:
+                currentPage = DrawerSections.product;
+                break;
+              case 9:
+                currentPage = DrawerSections.act;
+                break;
+              case 10:
+                currentPage = DrawerSections.news;
+                break;
+              case 13:
+                currentPage = DrawerSections.mediaP;
+                break;
+              case 16:
+                currentPage = DrawerSections.information;
+                break;
+              case 17:
+                currentPage = DrawerSections.schedule;
+                break;
+              case 20:
+                currentPage = DrawerSections.business;
+                break;
+              case 23:
+                currentPage = DrawerSections.myAgenda;
+                break;
+              case 34:
+                currentPage = DrawerSections.congressmenu;
+                break;
+              case 35:
+                currentPage = DrawerSections.detailexhib;
+                break;
+              case 36:
+                currentPage = DrawerSections.detailcongress;
+                break;
+              case 37:
+                currentPage = DrawerSections.DetailNetworkin;
+                break;
+              default:
+                currentPage = DrawerSections.home;
             }
           });
         },

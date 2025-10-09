@@ -1,20 +1,21 @@
 // lib/exhibitors_screen.dart
 
-import 'dart:convert'; // Keep if you use json.decode elsewhere, otherwise not strictly needed here
+import 'dart:convert';
 import 'package:animate_do/animate_do.dart';
-// import 'package:emecexpo/details/DetailExhibitors.dart'; // <--- Will fix this import if it's the dummy one
-import 'package:emecexpo/details/ExhibitorsMenu.dart'; // Keep if used elsewhere
+import 'package:emecexpo/details/ExhibitorsMenu.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_spinkit/flutter_spinkit.dart';
 import 'package:fluttertoast/fluttertoast.dart';
-import 'package:shared_preferences/shared_preferences.dart'; // Still used for SharedPreferences in onTap, consider removing if no longer needed
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:provider/provider.dart'; // 💡 Import Provider
+import 'package:emecexpo/providers/theme_provider.dart'; // 💡 Import ThemeProvider
 import 'package:emecexpo/model/exhibitors_model.dart';
 import 'package:emecexpo/api_services/exhibitor_api_service.dart';
+import 'package:emecexpo/details/DetailExhibitors.dart';
 
-// Import the correct DetailExhibitorsScreen (assuming it's in lib/details/DetailExhibitors.dart)
-import 'package:emecexpo/details/DetailExhibitors.dart'; // <--- CONFIRMED IMPORT
+import 'model/app_theme_data.dart';
 
 class ExhibitorsScreen extends StatefulWidget {
   const ExhibitorsScreen({Key? key}) : super(key: key);
@@ -24,11 +25,9 @@ class ExhibitorsScreen extends StatefulWidget {
 }
 
 class _ExhibitorsScreenState extends State<ExhibitorsScreen> {
-  // late SharedPreferences prefs; // <--- No longer directly needed here for navigation if passing ID
-  List<ExhibitorsClass> _allApiExhibitors = []; // For all data from API
-
-  List<ExhibitorsClass> _recommendedExhibitors = []; // For Static Sponsors
-  List<ExhibitorsClass> _otherExhibitors = []; // For API Exhibitors
+  List<ExhibitorsClass> _allApiExhibitors = [];
+  List<ExhibitorsClass> _recommendedExhibitors = [];
+  List<ExhibitorsClass> _otherExhibitors = [];
   List<ExhibitorsClass> _filteredOtherExhibitors = [];
 
   bool isLoading = true;
@@ -56,194 +55,36 @@ class _ExhibitorsScreenState extends State<ExhibitorsScreen> {
     });
 
     try {
-      // --- PART 1: Load Static Sponsor Data ---
-      // Ensure 'isRecommended' is explicitly passed for all.
       _recommendedExhibitors = [
         ExhibitorsClass(
-          0,
-          'TECHNOPARK',
-          'ED240',
-          'Incubateur technologique',
-          'Casablanca, Morocco',
-          'Full description for Technopark',
-          'www.technopark.ma',
-          'assets/partners/1.png',
-          false,
-          true,
-          isRecommended: true,
+          0, 'TECHNOPARK', 'ED240', 'Incubateur technologique',
+          'Casablanca, Morocco', 'Full description for Technopark',
+          'www.technopark.ma', 'assets/partners/1.png', false, true, isRecommended: true,
         ),
         ExhibitorsClass(
-          1,
-          'AMMC',
-          'EF300',
-          'Autorité des marchés financiers',
-          'Rabat, Morocco',
-          'Full description for AMMC',
-          'www.ammc.ma',
-          'assets/partners/2.png',
-          false,
-          false,
-          isRecommended: true,
+          1, 'AMMC', 'EF300', 'Autorité des marchés financiers',
+          'Rabat, Morocco', 'Full description for AMMC',
+          'www.ammc.ma', 'assets/partners/2.png', false, false, isRecommended: true,
         ),
         ExhibitorsClass(
-          2,
-          'MEDI 1 RADIO',
-          'RZ901',
-          'Radio d\'information continue',
-          'Tanger, Morocco',
-          'Full description for Medi 1 Radio',
-          'www.medi1radio.com',
-          'assets/partners/3.png',
-          false,
-          false,
-          isRecommended: true,
+          2, 'MEDI 1 RADIO', 'RZ901', 'Radio d\'information continue',
+          'Tanger, Morocco', 'Full description for Medi 1 Radio',
+          'www.medi1radio.com', 'assets/partners/3.png', false, false, isRecommended: true,
         ),
         ExhibitorsClass(
-          3,
-          'buzz event',
-          'FG450',
-          'Solutions IT innovantes',
-          'casablanca, Morocco',
-          'Full description for ABC Solutions',
-          'www.abcsolutions.ma',
-          'assets/partners/4.png',
-          false,
-          false,
-          isRecommended: true,
-        ),
-        // The remaining static entries for the 'All Exhibitors' section
-        // Explicitly set isRecommended: false for consistency.
-        ExhibitorsClass(
-          4,
-          'Quantum Tech',
-          'XY100',
-          'Expert en cybersécurité',
-          'Marrakech, Morocco',
-          'Full description for Quantum Tech',
-          'www.quantumtech.ma',
-          'assets/partners/5.png',
-          false,
-          true,
-          isRecommended: false, // <--- Added for consistency
-        ),
-        ExhibitorsClass(
-          5,
-          'ZETA Corp',
-          'AB200',
-          'Développement de logiciels',
-          'Agadir, Morocco',
-          'Full description for Zeta Corp',
-          'www.zetacorp.ma',
-          'assets/partners/6.png',
-          false,
-          false,
-          isRecommended: false, // <--- Added for consistency
-        ),
-        ExhibitorsClass(
-          6,
-          'Innovate Hub',
-          'CD301',
-          'Espace de co-working',
-          'Rabat, Morocco',
-          'Full description for Innovate Hub',
-          'www.innovatehub.ma',
-          'assets/partners/7.png',
-          false,
-          false,
-          isRecommended: false, // <--- Added for consistency
-        ),
-        ExhibitorsClass(
-          7,
-          'Global Connect',
-          'EF400',
-          'Fournisseur de services internet',
-          'Casablanca, Morocco',
-          'Full description for Global Connect',
-          'www.globalconnect.ma',
-          'assets/partners/8.png',
-          false,
-          false,
-          isRecommended: false, // <--- Added for consistency
-        ),
-        ExhibitorsClass(
-          8,
-          'inytom',
-          'GH500',
-          'Agence de marketing digital',
-          'casablanca, Morocco',
-          'Full description for Digital Dreams',
-          'www.digitaldreams.ma',
-          'assets/partners/9.png',
-          false,
-          false,
-          isRecommended: false, // <--- Added for consistency
-        ),
-        ExhibitorsClass(
-          9,
-          'Eco Ventures',
-          'IJ600',
-          'Solutions écologiques',
-          'Fes, Morocco',
-          'Full description for Eco Ventures',
-          'www.ecoventures.ma',
-          'assets/partners/10.png',
-          false,
-          false,
-          isRecommended: false, // <--- Added for consistency
-        ),
-        ExhibitorsClass(
-          10,
-          'Future Systems',
-          'KL700',
-          'Intégrateur de systèmes',
-          'Marrakech, Morocco',
-          'Full description for Future Systems',
-          'www.futuresystems.ma',
-          'assets/partners/11.png',
-          false,
-          false,
-          isRecommended: false, // <--- Added for consistency
-        ),
-        ExhibitorsClass(
-          11,
-          'Green Energy Co',
-          'MN800',
-          'Énergies renouvelables',
-          'Agadir, Morocco',
-          'Full description for Green Energy Co',
-          'www.greenenergy.ma',
-          'assets/partners/12.png',
-          false,
-          false,
-          isRecommended: false, // <--- Added for consistency
-        ),
-        ExhibitorsClass(
-          12,
-          'Bright Minds',
-          'OP900',
-          'Formations professionnelles',
-          'Casablanca, Morocco',
-          'Full description for Bright Minds',
-          'www.brightminds.ma',
-          'assets/partners/13.png',
-          false,
-          false,
-          isRecommended: false, // <--- Added for consistency
+          3, 'buzz event', 'FG450', 'Solutions IT innovantes',
+          'casablanca, Morocco', 'Full description for ABC Solutions',
+          'www.abcsolutions.ma', 'assets/partners/4.png', false, false, isRecommended: true,
         ),
       ];
       print('Static Sponsors Loaded: ${_recommendedExhibitors.length} items');
-      // _recommendedExhibitors.forEach((ex) => print('  Sponsor: ${ex.title} (Image: ${ex.image})')); // Keep for debug
 
-      // --- PART 2: Load All Exhibitors Data from API ---
       _allApiExhibitors = await _exhibitorApiService.getExhibitors();
       print('API Exhibitors Fetched: ${_allApiExhibitors.length} items');
-      // _allApiExhibitors.forEach((ex) => print('  API Exhibitor: ${ex.title} (isRecommended: ${ex.isRecommended}, Stand: ${ex.stand})')); // Keep for debug
 
-      // Populate _otherExhibitors (main list) from the API data
       _otherExhibitors = _allApiExhibitors.toList();
       print('Main Exhibitors List (from API) Populated: ${_otherExhibitors.length} items');
 
-      // Sort other exhibitors by title for alphabetical grouping
       _otherExhibitors.sort((a, b) => a.title.compareTo(b.title));
 
       _filteredOtherExhibitors = _otherExhibitors;
@@ -321,6 +162,10 @@ class _ExhibitorsScreenState extends State<ExhibitorsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // 💡 Access the theme provider
+    final themeProvider = Provider.of<ThemeProvider>(context);
+    final theme = themeProvider.currentTheme;
+
     double height = MediaQuery.of(context).size.height;
     double width = MediaQuery.of(context).size.width;
 
@@ -339,18 +184,28 @@ class _ExhibitorsScreenState extends State<ExhibitorsScreen> {
       child: GestureDetector(
         onTap: () => FocusScope.of(context).unfocus(),
         child: Scaffold(
-          backgroundColor: Colors.white,
+          // ✅ Use whiteColor from theme for scaffold background
+          backgroundColor: theme.whiteColor,
           appBar: AppBar(
-            backgroundColor: const Color(0xFF261350),
+            // ✅ Use primaryColor from theme
+            backgroundColor: theme.primaryColor,
             elevation: 0,
-            title: const Text(
+            title: Text(
               'Exhibitors',
-              style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+              style: TextStyle(
+                // ✅ Use whiteColor from theme
+                color: theme.whiteColor,
+                fontWeight: FontWeight.bold,
+              ),
             ),
             centerTitle: true,
             actions: [
               IconButton(
-                icon: const Icon(Icons.filter_list, color: Colors.white),
+                icon: Icon(
+                  Icons.filter_list,
+                  // ✅ Use whiteColor from theme
+                  color: theme.whiteColor,
+                ),
                 onPressed: () {
                   Fluttertoast.showToast(msg: "Other filters coming soon!");
                 },
@@ -358,7 +213,8 @@ class _ExhibitorsScreenState extends State<ExhibitorsScreen> {
               IconButton(
                 icon: Icon(
                   _isStarFilterActive ? Icons.star : Icons.star_border,
-                  color: _isStarFilterActive ? const Color(0xff00c1c1) : Colors.white,
+                  // ✅ Use secondaryColor for active star, white for inactive
+                  color: _isStarFilterActive ? theme.secondaryColor : theme.whiteColor,
                 ),
                 onPressed: _toggleStarFilter,
               ),
@@ -369,19 +225,22 @@ class _ExhibitorsScreenState extends State<ExhibitorsScreen> {
                 padding: EdgeInsets.symmetric(horizontal: width * 0.04, vertical: height * 0.01),
                 child: Container(
                   decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.2),
+                    // ✅ Use whiteColor with opacity
+                    color: theme.whiteColor.withOpacity(0.2),
                     borderRadius: BorderRadius.circular(10.0),
                   ),
                   child: TextField(
                     controller: _searchController,
                     decoration: InputDecoration(
                       hintText: 'Recherche',
-                      hintStyle: TextStyle(color: Colors.white.withOpacity(0.7)),
-                      prefixIcon: const Icon(Icons.search, color: Colors.white),
+                      // ✅ Use whiteColor with opacity
+                      hintStyle: TextStyle(color: theme.whiteColor.withOpacity(0.7)),
+                      prefixIcon: Icon(Icons.search, color: theme.whiteColor),
                       border: InputBorder.none,
                       contentPadding: EdgeInsets.symmetric(vertical: height * 0.015),
                     ),
-                    style: TextStyle(fontSize: height * 0.02, color: Colors.white),
+                    // ✅ Use whiteColor from theme
+                    style: TextStyle(fontSize: height * 0.02, color: theme.whiteColor),
                   ),
                 ),
               ),
@@ -390,7 +249,8 @@ class _ExhibitorsScreenState extends State<ExhibitorsScreen> {
           body: isLoading
               ? Center(
             child: SpinKitThreeBounce(
-              color: const Color(0xff00c1c1),
+              // ✅ Use secondaryColor from theme
+              color: theme.secondaryColor,
               size: 30.0,
             ),
           )
@@ -408,7 +268,8 @@ class _ExhibitorsScreenState extends State<ExhibitorsScreen> {
                       style: TextStyle(
                         fontSize: height * 0.02,
                         fontWeight: FontWeight.bold,
-                        color: Colors.black,
+                        // ✅ Use blackColor from theme
+                        color: theme.blackColor,
                       ),
                     ),
                   ),
@@ -423,7 +284,8 @@ class _ExhibitorsScreenState extends State<ExhibitorsScreen> {
                       padding: EdgeInsets.symmetric(horizontal: width * 0.04),
                       itemCount: _recommendedExhibitors.length,
                       itemBuilder: (context, index) {
-                        return _buildRecommendedExhibitorCard(_recommendedExhibitors[index], width, height);
+                        // 💡 Pass the theme to the card builder
+                        return _buildRecommendedExhibitorCard(_recommendedExhibitors[index], width, height, theme);
                       },
                     ),
                   ),
@@ -437,7 +299,8 @@ class _ExhibitorsScreenState extends State<ExhibitorsScreen> {
                       style: TextStyle(
                         fontSize: height * 0.02,
                         fontWeight: FontWeight.bold,
-                        color: Colors.black,
+                        // ✅ Use blackColor from theme
+                        color: theme.blackColor,
                       ),
                     ),
                   ),
@@ -449,6 +312,7 @@ class _ExhibitorsScreenState extends State<ExhibitorsScreen> {
                           _searchController.text.isNotEmpty
                               ? "No exhibitors found for your search."
                               : (_isStarFilterActive ? "No favorited exhibitors to display." : "No exhibitors to display."),
+                          // ✅ Use grey color for a neutral tone
                           style: const TextStyle(color: Colors.grey, fontSize: 16),
                           textAlign: TextAlign.center,
                         ),
@@ -466,17 +330,19 @@ class _ExhibitorsScreenState extends State<ExhibitorsScreen> {
                               style: TextStyle(
                                 fontSize: height * 0.02,
                                 fontWeight: FontWeight.bold,
-                                color: Colors.black,
+                                // ✅ Use blackColor from theme
+                                color: theme.blackColor,
                               ),
                             ),
                           ),
                           ListView.builder(
                             shrinkWrap: true,
-                            physics: const NeverScrollableScrollPhysics(), // <--- Added const
+                            physics: const NeverScrollableScrollPhysics(),
                             padding: EdgeInsets.symmetric(horizontal: width * 0.04),
                             itemCount: groupedOtherExhibitors[letter]!.length,
                             itemBuilder: (context, index) {
-                              return _buildExhibitorListItem(groupedOtherExhibitors[letter]![index], width, height);
+                              // 💡 Pass the theme to the list item builder
+                              return _buildExhibitorListItem(groupedOtherExhibitors[letter]![index], width, height, theme);
                             },
                           ),
                         ],
@@ -491,31 +357,33 @@ class _ExhibitorsScreenState extends State<ExhibitorsScreen> {
     );
   }
 
-  Widget _buildRecommendedExhibitorCard(ExhibitorsClass exhibitor, double width, double height) {
+  // 💡 Updated method signature to accept an AppThemeData object
+  Widget _buildRecommendedExhibitorCard(ExhibitorsClass exhibitor, double width, double height, AppThemeData theme) {
     return Container(
       width: width * 0.45,
       margin: EdgeInsets.only(right: width * 0.03),
       decoration: BoxDecoration(
-        color: Colors.white,
+        // ✅ Use whiteColor from theme for card background
+        color: theme.whiteColor,
         borderRadius: BorderRadius.circular(10.0),
         boxShadow: [
           BoxShadow(
+            // ✅ Use grey with opacity for shadow
             color: Colors.grey.withOpacity(0.2),
             spreadRadius: 1,
             blurRadius: 3,
             offset: const Offset(0, 2),
           ),
         ],
+        // ✅ Use a gold color for the border
         border: Border.all(color: Colors.yellow.shade700, width: 2),
       ),
       child: GestureDetector(
         onTap: () {
-          // prefs = await SharedPreferences.getInstance(); // <--- Not needed anymore for navigation
-          // prefs.setString("Data", exhibitor.id.toString()); // <--- Not needed anymore for navigation
           Navigator.push(
             context,
             MaterialPageRoute(
-              builder: (context) => DetailExhibitorsScreen(exhibitorId: exhibitor.id), // <--- MODIFIED LINE
+              builder: (context) => DetailExhibitorsScreen(exhibitorId: exhibitor.id),
             ),
           );
         },
@@ -535,7 +403,7 @@ class _ExhibitorsScreenState extends State<ExhibitorsScreen> {
                     fit: BoxFit.contain,
                     errorBuilder: (context, error, stackTrace) {
                       return Image.asset(
-                        'assets/ICON-EMEC.png', // Fallback
+                        'assets/ICON-EMEC.png',
                         width: width * 0.25,
                         height: width * 0.15,
                         fit: BoxFit.contain,
@@ -548,7 +416,8 @@ class _ExhibitorsScreenState extends State<ExhibitorsScreen> {
                     child: IconButton(
                       icon: Icon(
                         exhibitor.star ? Icons.star : Icons.star_border,
-                        color: exhibitor.star ? const Color(0xff00c1c1) : Colors.grey,
+                        // ✅ Use secondaryColor for active star, grey for inactive
+                        color: exhibitor.star ? theme.secondaryColor : Colors.grey,
                         size: width * 0.05,
                       ),
                       onPressed: () {
@@ -567,7 +436,8 @@ class _ExhibitorsScreenState extends State<ExhibitorsScreen> {
                 style: TextStyle(
                   fontSize: height * 0.018,
                   fontWeight: FontWeight.bold,
-                  color: Colors.black,
+                  // ✅ Use blackColor from theme
+                  color: theme.blackColor,
                 ),
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
@@ -578,7 +448,8 @@ class _ExhibitorsScreenState extends State<ExhibitorsScreen> {
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: height * 0.014,
-                  color: Colors.grey[700],
+                  // ✅ Use blackColor with opacity
+                  color: theme.blackColor.withOpacity(0.7),
                 ),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
@@ -590,36 +461,40 @@ class _ExhibitorsScreenState extends State<ExhibitorsScreen> {
     );
   }
 
-  Widget _buildExhibitorListItem(ExhibitorsClass exhibitor, double width, double height) {
+  // 💡 Updated method signature to accept an AppThemeData object
+  Widget _buildExhibitorListItem(ExhibitorsClass exhibitor, double width, double height, AppThemeData theme) {
     return InkWell(
       onTap: () {
-        // prefs = await SharedPreferences.getInstance(); // <--- Not needed anymore for navigation
-        // prefs.setString("Data", exhibitor.id.toString()); // <--- Not needed anymore for navigation
         Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (context) => DetailExhibitorsScreen(exhibitorId: exhibitor.id), // <--- MODIFIED LINE
+            builder: (context) => DetailExhibitorsScreen(exhibitorId: exhibitor.id),
           ),
         );
       },
       child: Container(
         padding: EdgeInsets.symmetric(vertical: height * 0.015),
         decoration: BoxDecoration(
-          border: Border(bottom: BorderSide(color: Colors.grey[200]!, width: 1.0)),
+          border: Border(
+            bottom: BorderSide(
+              // ✅ Use blackColor with opacity for the divider
+              color: theme.blackColor.withOpacity(0.2),
+              width: 1.0,
+            ),
+          ),
         ),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.center,
           children: <Widget>[
             ClipOval(
               child: Image.asset(
-                'assets/ICON-EMEC.png', // Always use this asset for API-fetched exhibitors
+                'assets/ICON-EMEC.png',
                 width: width * 0.12,
                 height: width * 0.12,
                 fit: BoxFit.cover,
               ),
             ),
             SizedBox(width: width * 0.04),
-
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -629,7 +504,8 @@ class _ExhibitorsScreenState extends State<ExhibitorsScreen> {
                     style: TextStyle(
                       fontSize: height * 0.02,
                       fontWeight: FontWeight.bold,
-                      color: Colors.black,
+                      // ✅ Use blackColor from theme
+                      color: theme.blackColor,
                     ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
@@ -639,7 +515,8 @@ class _ExhibitorsScreenState extends State<ExhibitorsScreen> {
                     exhibitor.adress.isNotEmpty ? exhibitor.adress : exhibitor.shortDiscriptions,
                     style: TextStyle(
                       fontSize: height * 0.016,
-                      color: Colors.grey[700],
+                      // ✅ Use blackColor with opacity
+                      color: theme.blackColor.withOpacity(0.7),
                     ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
@@ -647,16 +524,21 @@ class _ExhibitorsScreenState extends State<ExhibitorsScreen> {
                   const SizedBox(height: 2.0),
                   Text(
                     "Stand :${exhibitor.stand}",
-                    style: TextStyle(color: Colors.black26, height: 1.5, fontSize: height * 0.014),
+                    style: TextStyle(
+                      // ✅ Use a darker grey or black with low opacity
+                      color: Colors.black26,
+                      height: 1.5,
+                      fontSize: height * 0.014,
+                    ),
                   ),
                 ],
               ),
             ),
-
             IconButton(
               icon: Icon(
                 exhibitor.star ? Icons.star : Icons.star_border,
-                color: exhibitor.star ? const Color(0xff00c1c1) : Colors.grey,
+                // ✅ Use secondaryColor for active star, grey for inactive
+                color: exhibitor.star ? theme.secondaryColor : Colors.grey,
                 size: width * 0.06,
               ),
               onPressed: () {
@@ -672,21 +554,3 @@ class _ExhibitorsScreenState extends State<ExhibitorsScreen> {
     );
   }
 }
-
-// REMOVE THIS DUMMY CLASS from this file!
-// This class definition for DetailExhibitorsScreen should ONLY exist in lib/details/DetailExhibitors.dart
-/*
-class DetailExhibitorsScreen extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text('Exhibitor Details'),
-      ),
-      body: Center(
-        child: Text('Details about the exhibitor.'),
-      ),
-    );
-  }
-}
-*/

@@ -1,8 +1,10 @@
-// lib/favourites_screen.dart
 import 'package:flutter/material.dart';
-import 'package:fluttertoast/fluttertoast.dart'; // For toasts (optional)
-import 'package:flutter_spinkit/flutter_spinkit.dart'; // For loading indicator (optional)
-import '../model/favorite_item_model.dart'; // Adjust path if your model is elsewhere
+import 'package:fluttertoast/fluttertoast.dart';
+import 'package:flutter_spinkit/flutter_spinkit.dart';
+import 'package:provider/provider.dart'; // 💡 Import Provider
+import 'package:emecexpo/providers/theme_provider.dart'; // 💡 Import ThemeProvider
+import '../model/favorite_item_model.dart';
+import 'model/app_theme_data.dart';
 
 class FavouritesScreen extends StatefulWidget {
   const FavouritesScreen({super.key});
@@ -31,7 +33,6 @@ class _FavouritesScreenState extends State<FavouritesScreen> {
   }
 
   void _loadFavoriteItems() async {
-    // Simulate network delay
     await Future.delayed(const Duration(seconds: 1));
 
     setState(() {
@@ -40,7 +41,7 @@ class _FavouritesScreenState extends State<FavouritesScreen> {
           name: 'TAMWILCOM',
           location: 'Maroc',
           hallLocation: 'Hall 9.9B-30',
-          logoPath: 'assets/tamwilcom_logo.png', // Replace with your logo asset
+          logoPath: 'assets/tamwilcom_logo.png',
           categories: ['Banking, Finance & Insurance', 'Environment & Sustainability', 'Gaming'],
           isFavorite: true,
         ),
@@ -48,7 +49,7 @@ class _FavouritesScreenState extends State<FavouritesScreen> {
           name: 'Tech Solutions Inc.',
           location: 'USA',
           hallLocation: 'Booth 12A-45',
-          logoPath: 'assets/company_logo2.png', // Replace with your logo asset
+          logoPath: 'assets/company_logo2.png',
           categories: ['Software Development', 'Cloud Services'],
           isFavorite: true,
         ),
@@ -56,7 +57,7 @@ class _FavouritesScreenState extends State<FavouritesScreen> {
           name: 'Green Energy Co.',
           location: 'France',
           hallLocation: 'Zone C-10',
-          logoPath: 'assets/company_logo3.png', // Replace with your logo asset
+          logoPath: 'assets/company_logo3.png',
           categories: ['Renewable Energy', 'Sustainability'],
           isFavorite: true,
         ),
@@ -90,10 +91,9 @@ class _FavouritesScreenState extends State<FavouritesScreen> {
   void _toggleFavorite(FavoriteItem item) {
     setState(() {
       item.isFavorite = !item.isFavorite;
-      // Optionally remove from list if no longer favorite, or just update star
       if (!item.isFavorite) {
         _allFavoriteItems.remove(item);
-        _filterFavoriteItems(); // Re-filter to update the displayed list
+        _filterFavoriteItems();
         Fluttertoast.showToast(msg: "${item.name} removed from favorites.");
       } else {
         Fluttertoast.showToast(msg: "${item.name} added to favorites.");
@@ -103,51 +103,59 @@ class _FavouritesScreenState extends State<FavouritesScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // 💡 Access the theme provider
+    final themeProvider = Provider.of<ThemeProvider>(context);
+    final theme = themeProvider.currentTheme;
+
     final double screenWidth = MediaQuery.of(context).size.width;
     final double screenHeight = MediaQuery.of(context).size.height;
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Favourites'), // Title from image
-        backgroundColor: const Color(0xff261350),
-        foregroundColor: Colors.white,
+        title: const Text('Favourites'),
+        // ✅ Apply primaryColor from the theme
+        backgroundColor: theme.primaryColor,
+        // ✅ Apply whiteColor for the text and icons
+        foregroundColor: theme.whiteColor,
         centerTitle: true,
         elevation: 0,
         actions: [
           IconButton(
-            icon: const Icon(Icons.filter_list), // Filter icon from image
+            icon: const Icon(Icons.filter_list),
             onPressed: () {
-              // TODO: Implement filter functionality
               Fluttertoast.showToast(msg: "Filter action!");
             },
           ),
           IconButton(
-            icon: const Icon(Icons.sort), // Sort icon from image
+            icon: const Icon(Icons.sort),
             onPressed: () {
-              // TODO: Implement sort functionality
               Fluttertoast.showToast(msg: "Sort action!");
             },
           ),
         ],
-        // Search bar in AppBar.bottom, like Products/Speakers screen
         bottom: PreferredSize(
-          preferredSize: Size.fromHeight(screenHeight * 0.08), // Height for the search bar
+          preferredSize: Size.fromHeight(screenHeight * 0.08),
           child: Padding(
             padding: EdgeInsets.symmetric(horizontal: screenWidth * 0.04, vertical: screenHeight * 0.01),
             child: Container(
               decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.2), // White with opacity for integrated look
+                // ✅ Use whiteColor with opacity for the search bar background
+                color: theme.whiteColor.withOpacity(0.2),
                 borderRadius: BorderRadius.circular(10.0),
               ),
               child: TextField(
                 controller: _searchController,
-                cursorColor: const Color(0xff00c1c1),
-                style: TextStyle(fontSize: screenHeight * 0.02, color: Colors.white), // Text color for input
+                // ✅ Use secondaryColor for the cursor
+                cursorColor: theme.secondaryColor,
+                // ✅ Use whiteColor for the input text
+                style: TextStyle(fontSize: screenHeight * 0.02, color: theme.whiteColor),
                 decoration: InputDecoration(
-                  hintText: 'Recherche', // Hint text from image
-                  hintStyle: TextStyle(color: Colors.white.withOpacity(0.7)),
-                  prefixIcon: const Icon(Icons.search, color: Colors.white), // Search icon from image
-                  border: InputBorder.none, // No default border
+                  hintText: 'Recherche',
+                  // ✅ Use whiteColor with opacity for hint text
+                  hintStyle: TextStyle(color: theme.whiteColor.withOpacity(0.7)),
+                  // ✅ Use whiteColor for the search icon
+                  prefixIcon: Icon(Icons.search, color: theme.whiteColor),
+                  border: InputBorder.none,
                   contentPadding: EdgeInsets.symmetric(vertical: screenHeight * 0.015),
                 ),
               ),
@@ -156,9 +164,10 @@ class _FavouritesScreenState extends State<FavouritesScreen> {
         ),
       ),
       body: _isLoading
-          ? const Center(
+          ? Center(
         child: SpinKitThreeBounce(
-          color: Color(0xff00c1c1),
+          // ✅ Use secondaryColor for the loading indicator
+          color: theme.secondaryColor,
           size: 30.0,
         ),
       )
@@ -183,15 +192,19 @@ class _FavouritesScreenState extends State<FavouritesScreen> {
         itemCount: _filteredFavoriteItems.length,
         itemBuilder: (context, index) {
           final item = _filteredFavoriteItems[index];
-          return _buildFavoriteItemCard(item, screenWidth, screenHeight);
+          // 💡 Pass the theme to the card builder
+          return _buildFavoriteItemCard(item, screenWidth, screenHeight, theme);
         },
       ),
     );
   }
 
-  Widget _buildFavoriteItemCard(FavoriteItem item, double screenWidth, double screenHeight) {
+  // 💡 Updated method signature to accept an AppThemeData object
+  Widget _buildFavoriteItemCard(FavoriteItem item, double screenWidth, double screenHeight, AppThemeData theme) {
     return Card(
       margin: const EdgeInsets.symmetric(vertical: 8.0),
+      // ✅ Use whiteColor for the card background
+      color: theme.whiteColor,
       elevation: 2.0,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(10.0),
@@ -206,9 +219,11 @@ class _FavouritesScreenState extends State<FavouritesScreen> {
               width: screenWidth * 0.15,
               height: screenWidth * 0.15,
               decoration: BoxDecoration(
-                color: Colors.grey[200],
+                // ✅ Use blackColor with opacity for the background
+                color: theme.blackColor.withOpacity(0.05),
                 borderRadius: BorderRadius.circular(8.0),
-                border: Border.all(color: Colors.grey.shade300),
+                // ✅ Use blackColor with opacity for the border
+                border: Border.all(color: theme.blackColor.withOpacity(0.1)),
               ),
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(8.0),
@@ -218,8 +233,9 @@ class _FavouritesScreenState extends State<FavouritesScreen> {
                   errorBuilder: (context, error, stackTrace) {
                     return Center(
                       child: Icon(
-                        Icons.business, // Default icon if image fails
+                        Icons.business,
                         size: screenWidth * 0.08,
+                        // ✅ Use a darker shade of grey or black with opacity
                         color: Colors.grey[500],
                       ),
                     );
@@ -238,11 +254,12 @@ class _FavouritesScreenState extends State<FavouritesScreen> {
                     children: [
                       Expanded(
                         child: Text(
-                          item.name, // Name from image
+                          item.name,
                           style: TextStyle(
                             fontSize: screenHeight * 0.022,
                             fontWeight: FontWeight.bold,
-                            color: Colors.black,
+                            // ✅ Use blackColor for the text
+                            color: theme.blackColor,
                           ),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
@@ -251,18 +268,20 @@ class _FavouritesScreenState extends State<FavouritesScreen> {
                       GestureDetector(
                         onTap: () => _toggleFavorite(item),
                         child: Icon(
-                          item.isFavorite ? Icons.star : Icons.star_border, // Star icon from image
-                          color: item.isFavorite ? Colors.amber : Colors.grey,
+                          item.isFavorite ? Icons.star : Icons.star_border,
+                          // ✅ Use secondaryColor for the filled star, and a grey for the border
+                          color: item.isFavorite ? theme.secondaryColor : Colors.grey,
                           size: screenWidth * 0.06,
                         ),
                       ),
                     ],
                   ),
                   Text(
-                    item.location, // Location from image
+                    item.location,
                     style: TextStyle(
                       fontSize: screenHeight * 0.016,
-                      color: Colors.grey[700],
+                      // ✅ Use blackColor with opacity
+                      color: theme.blackColor.withOpacity(0.7),
                     ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
@@ -270,10 +289,10 @@ class _FavouritesScreenState extends State<FavouritesScreen> {
                   SizedBox(height: screenHeight * 0.005),
                   Row(
                     children: [
-                      Icon(Icons.location_on, size: screenHeight * 0.018, color: Colors.grey), // Location pin icon from image
+                      Icon(Icons.location_on, size: screenHeight * 0.018, color: Colors.grey),
                       SizedBox(width: screenWidth * 0.01),
                       Text(
-                        item.hallLocation, // Hall location from image
+                        item.hallLocation,
                         style: TextStyle(
                           fontSize: screenHeight * 0.016,
                           color: Colors.grey,
@@ -282,19 +301,23 @@ class _FavouritesScreenState extends State<FavouritesScreen> {
                     ],
                   ),
                   SizedBox(height: screenHeight * 0.01),
-                  // Categories/Tags
                   Wrap(
-                    spacing: 8.0, // Horizontal spacing between chips
-                    runSpacing: 4.0, // Vertical spacing between lines of chips
+                    spacing: 8.0,
+                    runSpacing: 4.0,
                     children: item.categories.map((category) {
                       return Chip(
                         label: Text(
                           category,
-                          style: TextStyle(fontSize: screenHeight * 0.014, color: Colors.black87),
+                          style: TextStyle(
+                            fontSize: screenHeight * 0.014,
+                            // ✅ Use blackColor with opacity
+                            color: theme.blackColor.withOpacity(0.87),
+                          ),
                         ),
-                        backgroundColor: Colors.grey[200],
+                        // ✅ Use blackColor with opacity for the chip background
+                        backgroundColor: theme.blackColor.withOpacity(0.1),
                         shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(5.0), // Rounded corners for tags
+                          borderRadius: BorderRadius.circular(5.0),
                         ),
                         padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 2.0),
                       );

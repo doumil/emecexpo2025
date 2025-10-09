@@ -1,3 +1,5 @@
+// lib/home_screen.dart
+
 import 'dart:convert';
 import 'package:animate_do/animate_do.dart';
 import 'package:emecexpo/services/onwillpop_services.dart';
@@ -7,6 +9,7 @@ import 'package:provider/provider.dart';
 
 // Import your providers
 import 'package:emecexpo/providers/menu_provider.dart';
+import 'package:emecexpo/providers/theme_provider.dart';
 
 // Your custom imports
 import 'package:emecexpo/model/user_model.dart';
@@ -37,10 +40,18 @@ class _HomeScreenState extends State<HomeScreen> {
   User? _loggedInUser;
   late SharedPreferences prefs;
 
+  // Confirmed URL for the large banner image
+  static const String _bannerImageUrl = 'https://buzzevents.co/uploads/800x400-EMECEXPO-2025.jpg';
+
   @override
   void initState() {
     super.initState();
     _initializeUserAndToken();
+
+    // 💡 Fetch the menu configuration immediately after the widget is mounted
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      Provider.of<MenuProvider>(context, listen: false).fetchMenuConfig();
+    });
   }
 
   // Method to handle loading user data and token
@@ -87,6 +98,10 @@ class _HomeScreenState extends State<HomeScreen> {
     double width = MediaQuery.of(context).size.width;
     OnWillPop on = OnWillPop();
 
+    // Access the theme provider and theme colors
+    final themeProvider = Provider.of<ThemeProvider>(context);
+    final theme = themeProvider.currentTheme;
+
     // Use a Consumer to rebuild the UI when the MenuProvider data changes
     return Consumer<MenuProvider>(
       builder: (context, menuProvider, child) {
@@ -94,9 +109,11 @@ class _HomeScreenState extends State<HomeScreen> {
 
         // Show a loading indicator if the API data is not yet available
         if (menuConfig == null) {
-          return const Scaffold(
-            backgroundColor: Colors.black,
-            body: Center(child: CircularProgressIndicator()),
+          return Scaffold(
+            backgroundColor: theme.blackColor,
+            body: Center(child: CircularProgressIndicator(
+              color: theme.secondaryColor,
+            )),
           );
         }
 
@@ -106,38 +123,46 @@ class _HomeScreenState extends State<HomeScreen> {
             appBar: AppBar(
               title: Center(
                 child: Text(
+                  // Use title from API if necessary, otherwise the user name
                   'Welcome, ${_loggedInUser?.name ?? 'Guest'}!',
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 24,
                     fontWeight: FontWeight.bold,
-                    color: Colors.white,
+                    color: theme.whiteColor,
                   ),
                   textAlign: TextAlign.center,
                 ),
               ),
-              backgroundColor: Colors.black,
+              backgroundColor: theme.blackColor,
               actions: <Widget>[
                 IconButton(
-                  icon: const Icon(Icons.logout, color: Colors.white),
+                  icon: Icon(
+                      Icons.logout,
+                      color: theme.whiteColor
+                  ),
                   onPressed: _logout,
                   tooltip: 'Logout',
                 ),
               ],
               elevation: 0,
             ),
+
+            // NOTE: You will likely want to implement a Drawer here
+            // and use the menuConfig booleans to build the Drawer items as well.
+
             body: LayoutBuilder(
               builder: (BuildContext context, BoxConstraints viewportConstraints) {
                 return SingleChildScrollView(
                   child: FadeInDown(
                     duration: const Duration(milliseconds: 500),
                     child: Container(
-                      decoration: const BoxDecoration(
+                      decoration: BoxDecoration(
                         gradient: LinearGradient(
                           begin: Alignment.topCenter,
                           end: Alignment.bottomCenter,
                           colors: [
-                            Colors.black,
-                            Color(0xff261350),
+                            theme.blackColor,
+                            theme.primaryColor.withOpacity(0.9),
                           ],
                         ),
                       ),
@@ -145,11 +170,33 @@ class _HomeScreenState extends State<HomeScreen> {
                           horizontal: width * 0.04, vertical: height * 0.02),
                       child: Column(
                         children: [
+                          // 💡 DYNAMIC BANNER IMAGE USING CONFIRMED URL 💡
                           Container(
                             padding: EdgeInsets.fromLTRB(
                                 width * 0.04, width * 0.04, width * 0.04, width * 0.01),
-                            child: Image.asset("assets/banner.png"),
+                            child: Image.network(
+                              _bannerImageUrl,
+                              fit: BoxFit.contain,
+                              loadingBuilder: (BuildContext context, Widget child, ImageChunkEvent? loadingProgress) {
+                                if (loadingProgress == null) return child;
+                                return Center(
+                                  child: LinearProgressIndicator(
+                                    value: loadingProgress.expectedTotalBytes != null
+                                        ? loadingProgress.cumulativeBytesLoaded / loadingProgress.expectedTotalBytes!
+                                        : null,
+                                    color: theme.secondaryColor,
+                                    backgroundColor: theme.whiteColor.withOpacity(0.3),
+                                  ),
+                                );
+                              },
+                              errorBuilder: (context, error, stackTrace) {
+                                // Fallback to a placeholder asset if network fails
+                                return Image.asset("assets/banner.png", fit: BoxFit.contain);
+                              },
+                            ),
                           ),
+                          // 💡 END DYNAMIC BANNER IMAGE 💡
+
                           SizedBox(height: height * 0.02),
 
                           // Row for "My Badge" and other cards, conditionally rendered
@@ -168,10 +215,13 @@ class _HomeScreenState extends State<HomeScreen> {
                                       icon: Icons.qr_code_scanner,
                                       screen: const MyBadgeScreen(),
                                       width: width,
+                                      themeProvider: themeProvider,
                                     ),
                                   ),
                                 ),
-                              if (menuConfig.badge) SizedBox(width: width * 0.099),
+                              // Adjust spacing based on whether the badge is shown
+                              if (menuConfig.badge && (menuConfig.floorPlan || menuConfig.networking))
+                                SizedBox(width: width * 0.099),
 
                               // Column for Floor Plan and Networking
                               Expanded(
@@ -187,6 +237,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                           icon: Icons.location_on_outlined,
                                           screen: EFPScreen(),
                                           width: width,
+                                          themeProvider: themeProvider,
                                         ),
                                       ),
                                     if (menuConfig.floorPlan && menuConfig.networking)
@@ -200,6 +251,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                           icon: Icons.people_outline,
                                           screen: NetworkinScreen(),
                                           width: width,
+                                          themeProvider: themeProvider,
                                         ),
                                       ),
                                   ],
@@ -225,14 +277,16 @@ class _HomeScreenState extends State<HomeScreen> {
                                   icon: Icons.store_mall_directory_outlined,
                                   screen: ExhibitorsScreen(),
                                   width: width,
+                                  themeProvider: themeProvider,
                                 ),
-                              if (menuConfig.products)
+                              if (menuConfig.products) // Will be hidden if 'products' is false or missing
                                 _buildGridCard(
                                   context: context,
                                   title: 'Products',
                                   icon: Icons.category_outlined,
                                   screen: ProductScreen(),
                                   width: width,
+                                  themeProvider: themeProvider,
                                 ),
                               if (menuConfig.congresses)
                                 _buildGridCard(
@@ -241,6 +295,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                   icon: Icons.speaker_notes_outlined,
                                   screen: CongressScreen(),
                                   width: width,
+                                  themeProvider: themeProvider,
                                 ),
                               if (menuConfig.program)
                                 _buildGridCard(
@@ -249,6 +304,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                   icon: Icons.calendar_today_outlined,
                                   screen: MyAgendaScreen(),
                                   width: width,
+                                  themeProvider: themeProvider,
                                 ),
                               if (menuConfig.partners)
                                 _buildGridCard(
@@ -257,6 +313,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                   icon: Icons.handshake_outlined,
                                   screen: PartnersScreen(),
                                   width: width,
+                                  themeProvider: themeProvider,
                                 ),
                               if (menuConfig.sponsors)
                                 _buildGridCard(
@@ -265,6 +322,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                   icon: Icons.favorite_outline,
                                   screen: SupportingPScreen(),
                                   width: width,
+                                  themeProvider: themeProvider,
                                 ),
                             ],
                           ),
@@ -281,14 +339,16 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  // New function specifically for "My Badge" card
+  // Updated function to accept themeProvider
   Widget _buildMyBadgeCard({
     required BuildContext context,
     required String title,
     required IconData icon,
     required Widget screen,
     required double width,
+    required ThemeProvider themeProvider,
   }) {
+    final theme = themeProvider.currentTheme;
     return GestureDetector(
       onTap: () {
         Navigator.push(
@@ -298,9 +358,11 @@ class _HomeScreenState extends State<HomeScreen> {
       },
       child: Container(
         decoration: BoxDecoration(
-          color: Colors.white.withOpacity(0.1),
+          color: theme.primaryColor.withOpacity(0.1),
           borderRadius: BorderRadius.circular(20.0),
-          border: Border.all(color: Colors.white.withOpacity(0.2)),
+          border: Border.all(
+              color: theme.whiteColor.withOpacity(0.2)
+          ),
         ),
         padding: EdgeInsets.only(left: width * 0.05, top: width * 0.05, bottom: width * 0.05),
         child: Column(
@@ -310,14 +372,14 @@ class _HomeScreenState extends State<HomeScreen> {
             Icon(
               icon,
               size: 60,
-              color: const Color(0xff00c1c1),
+              color: theme.secondaryColor,
             ),
             const SizedBox(height: 12.0),
             Text(
               title,
               textAlign: TextAlign.left,
-              style: const TextStyle(
-                color: Colors.white,
+              style: TextStyle(
+                color: theme.whiteColor,
                 fontSize: 22.0,
                 fontWeight: FontWeight.w600,
               ),
@@ -328,14 +390,16 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  // General function for other grid cards
+  // Updated function to accept themeProvider
   Widget _buildGridCard({
     required BuildContext context,
     required String title,
     required IconData icon,
     required Widget screen,
     required double width,
+    required ThemeProvider themeProvider,
   }) {
+    final theme = themeProvider.currentTheme;
     return GestureDetector(
       onTap: () {
         Navigator.push(
@@ -345,9 +409,11 @@ class _HomeScreenState extends State<HomeScreen> {
       },
       child: Container(
         decoration: BoxDecoration(
-          color: Colors.white.withOpacity(0.1),
+          color: theme.primaryColor.withOpacity(0.1),
           borderRadius: BorderRadius.circular(20.0),
-          border: Border.all(color: Colors.white.withOpacity(0.2)),
+          border: Border.all(
+              color: theme.whiteColor.withOpacity(0.2)
+          ),
         ),
         padding: EdgeInsets.all(width * 0.03),
         child: Column(
@@ -357,14 +423,14 @@ class _HomeScreenState extends State<HomeScreen> {
             Icon(
               icon,
               size: 40,
-              color: const Color(0xff00c1c1),
+              color: theme.secondaryColor,
             ),
             const SizedBox(height: 8.0),
             Text(
               title,
               textAlign: TextAlign.center,
-              style: const TextStyle(
-                color: Colors.white,
+              style: TextStyle(
+                color: theme.whiteColor,
                 fontSize: 15.0,
                 fontWeight: FontWeight.w500,
               ),
