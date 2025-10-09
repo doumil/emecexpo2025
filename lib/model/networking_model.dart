@@ -1,4 +1,4 @@
-// lib/model/networking_class.dart
+// lib/model/networking_model.dart
 
 class NetworkingClass {
   // Fields that were originally in ExhibitorsClass, now directly in NetworkingClass

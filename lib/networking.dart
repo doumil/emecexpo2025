@@ -1,20 +1,17 @@
+// networking_screen.dart
+
 import 'package:animate_do/animate_do.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_spinkit/flutter_spinkit.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-// IMPORTANT: Ensure these imports point to your correct file paths.
-// We are now only using NetworkingClass.
-import 'package:emecexpo/model/networking_class.dart'; // <--- ONLY THIS MODEL IS USED
+import 'package:emecexpo/model/networking_model.dart';
 import 'package:emecexpo/api_services/networking_api_service.dart';
-
-// Assuming 'DetailNetworkin.dart' is the screen you navigate to for details
-// and it will also need to be updated to expect a NetworkingClass object.
-import 'details/DetailNetworkin.dart'; // Adjust path if necessary
+import 'details/DetailNetworkin.dart';
 
 class NetworkinScreen extends StatefulWidget {
-  final String? authToken; // Passed from login/WelcomPage
+  final String? authToken;
   const NetworkinScreen({Key? key, this.authToken}) : super(key: key);
 
   @override
@@ -22,49 +19,43 @@ class NetworkinScreen extends StatefulWidget {
 }
 
 class _NetworkinScreenState extends State<NetworkinScreen> {
-  // --- STATE VARIABLES ---
-  // The Future and the list now explicitly expect NetworkingClass objects.
+
   late Future<List<NetworkingClass>> _networkingExhibitorsFuture;
   late PageController _pageController;
   int _currentPageIndex = 0;
-
-  List<NetworkingClass> _networkingProfiles = []; // Store fetched profiles here
-
-  String? _userAuthToken; // Authentication token for API calls
-
-  // Instantiate your API service
+  List<NetworkingClass> _networkingProfiles = [];
+  String? _userAuthToken;
   final NetworkingApiService _networkingApiService = NetworkingApiService();
 
-  // --- LIFECYCLE METHODS ---
   @override
   void initState() {
     super.initState();
     _pageController = PageController(initialPage: _currentPageIndex);
 
-    // Prioritize authToken from widget, fallback to SharedPreferences
     if (widget.authToken != null && widget.authToken!.isNotEmpty) {
       _userAuthToken = widget.authToken;
-      print('NetworkingScreen: Token provided via widget: $_userAuthToken');
-      _initializeNetworkingData(); // Proceed if token is immediately available
+      _initializeNetworkingData();
     } else {
-      print('NetworkingScreen: Token not provided via widget, attempting to load from prefs...');
-      _loadAuthTokenAndInitialize(); // Asynchronously load token then initialize
+      _loadAuthTokenAndInitialize();
     }
   }
 
-  // --- DATA LOADING METHODS ---
-  // New method to handle async token loading and subsequent data fetch
   Future<void> _loadAuthTokenAndInitialize() async {
+    // Set a temporary placeholder error state if the token isn't immediately found
+    // This prevents the FutureBuilder from crashing before the async load completes
+    setState(() {
+      _networkingExhibitorsFuture = Future.value([]);
+    });
+
     final SharedPreferences prefs = await SharedPreferences.getInstance();
     final String? token = prefs.getString('authToken');
+
     if (token != null && token.isNotEmpty) {
       setState(() {
         _userAuthToken = token;
       });
-      print('NetworkingScreen: Token loaded from SharedPreferences: $_userAuthToken');
-      _initializeNetworkingData(); // Now initialize data with the loaded token
+      _initializeNetworkingData();
     } else {
-      // If no token found after trying both methods, set future to error
       print('NetworkingScreen: No authentication token found at all.');
       setState(() {
         _networkingExhibitorsFuture = Future.error(
@@ -73,11 +64,9 @@ class _NetworkinScreenState extends State<NetworkinScreen> {
       });
     }
   }
-  // This method sets up the future, called *only* when _userAuthToken is ready
+
   void _initializeNetworkingData() {
     if (_userAuthToken == null || _userAuthToken!.isEmpty) {
-      // This should ideally not be reached if _initializeNetworkingData is called correctly
-      print('NetworkingScreen: _userAuthToken is still null or empty when trying to initialize data.');
       setState(() {
         _networkingExhibitorsFuture = Future.error(
             'Authentication token is missing after initialization attempt.'
@@ -86,13 +75,12 @@ class _NetworkinScreenState extends State<NetworkinScreen> {
       return;
     }
     setState(() {
-      // THIS IS THE CORRECTED LINE: Pass the _userAuthToken to the API service call
+      // Pass the _userAuthToken to the API service call
       _networkingExhibitorsFuture = _networkingApiService.getNetworkingExhibitors(_userAuthToken!);
     });
     print('NetworkingScreen: Fetching networking data with token: $_userAuthToken');
   }
 
-  // --- NAVIGATION AND UI INTERACTION METHODS ---
   @override
   void dispose() {
     _pageController.dispose();
@@ -107,11 +95,9 @@ class _NetworkinScreenState extends State<NetworkinScreen> {
       );
     } else {
       print("No more profiles to show! End of list.");
-      // Optional: You might want to show a dialog, navigate to another screen, etc.
     }
   }
 
-  // Handle back button press
   Future<bool> _onWillPop() async {
     return (await showDialog(
       context: context,
@@ -124,7 +110,7 @@ class _NetworkinScreenState extends State<NetworkinScreen> {
             child: const Text('Non'),
           ),
           TextButton(
-            onPressed: () => SystemNavigator.pop(), // This exits the app
+            onPressed: () => SystemNavigator.pop(),
             child: const Text('Oui '),
           ),
         ],
@@ -147,10 +133,9 @@ class _NetworkinScreenState extends State<NetworkinScreen> {
             style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
           ),
           centerTitle: true,
-          // No actions in AppBar as per provided code
           actions: const [],
         ),
-        body: FutureBuilder<List<NetworkingClass>>( // <--- Type explicitly set to NetworkingClass
+        body: FutureBuilder<List<NetworkingClass>>(
           future: _networkingExhibitorsFuture,
           builder: (context, snapshot) {
             if (snapshot.connectionState == ConnectionState.waiting) {
@@ -160,22 +145,31 @@ class _NetworkinScreenState extends State<NetworkinScreen> {
                   size: 30.0,
                 ),
               );
-            } else if (snapshot.hasError) {
+            }
+
+            // This handles network errors, API status errors (401, 500, etc.),
+            // and the missing token error thrown in _loadAuthTokenAndInitialize.
+            else if (snapshot.hasError) {
+              // Extract the error message for display
+              final String errorMessage = snapshot.error.toString().replaceFirst('Exception: ', '');
+
               return Center(
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    const Icon(Icons.error_outline, color: Colors.red, size: 60),
+                    const Icon(Icons.signal_wifi_off, color: Colors.red, size: 60),
                     const SizedBox(height: 10),
                     Text(
-                      'Error: ${snapshot.error}',
+                      // Display the clean error message
+                      'Error loading data: \n$errorMessage',
                       textAlign: TextAlign.center,
                       style: const TextStyle(color: Colors.red, fontSize: 16),
                     ),
                     const SizedBox(height: 20),
                     ElevatedButton(
                       onPressed: () {
-                        // Retry logic: try to reload token and initialize data
+                        // Retry logic: reload token and initialize data
+                        // This will re-attempt the network call
                         _loadAuthTokenAndInitialize();
                       },
                       child: const Text('Retry'),
@@ -183,17 +177,32 @@ class _NetworkinScreenState extends State<NetworkinScreen> {
                   ],
                 ),
               );
-            } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
-              return const Center(
-                child: Text('No networking data available or no exhibitors found.'),
+            }
+
+            // This handles the successful 200 response that contains an empty list
+            else if (!snapshot.hasData || snapshot.data!.isEmpty) {
+              return Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(Icons.person_search_outlined, color: Colors.grey, size: 60),
+                    const SizedBox(height: 10),
+                    // This is the message you requested
+                    const Text(
+                      'No networking data available or no exhibitors found.',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(color: Colors.grey, fontSize: 16),
+                    ),
+                  ],
+                ),
               );
-            } else {
+            }
+
+            // Data successfully loaded and not empty
+            else {
               _networkingProfiles = snapshot.data!;
-              if (_networkingProfiles.isEmpty) {
-                return const Center(
-                  child: Text('No networking profiles to display.'),
-                );
-              }
+              // The inner check `if (_networkingProfiles.isEmpty)` is now redundant
+              // but harmless, as the previous `else if` handles it.
 
               return Column(
                 children: [
@@ -210,7 +219,6 @@ class _NetworkinScreenState extends State<NetworkinScreen> {
                         },
                         itemBuilder: (context, index) {
                           final profile = _networkingProfiles[index];
-                          // Pass the NetworkingClass object to the card builder
                           return _buildNetworkingCard(profile);
                         },
                       ),
@@ -228,9 +236,7 @@ class _NetworkinScreenState extends State<NetworkinScreen> {
     );
   }
 
-  // --- HELPER WIDGETS ---
-
-  // Updated to accept NetworkingClass
+  // --- HELPER WIDGETS (Unchanged) ---
   Widget _buildNetworkingCard(NetworkingClass profile) {
     final int dummyMatchPercentage = 94; // Example dummy data
     final List<String> dummyInterests = const [
@@ -243,14 +249,13 @@ class _NetworkinScreenState extends State<NetworkinScreen> {
     return Container(
       padding: const EdgeInsets.all(20.0),
       child: GestureDetector(
-        // Navigate to details screen when card is tapped
         onTap: () {
-          // THIS LINE WAS COMMENTED OUT, NOW UNCOMMENTED TO RESTORE NAVIGATION
-/*          Navigator.push(
+          // You can uncomment this line when DetailNetworkinScreen is ready
+/* Navigator.push(
             context,
             MaterialPageRoute(
               builder: (context) => DetailNetworkinScreen(
-                networkingExhibitor: profile, // Pass the entire NetworkingClass object
+                networkingExhibitor: profile,
               ),
             ),
           );*/
@@ -258,8 +263,8 @@ class _NetworkinScreenState extends State<NetworkinScreen> {
         child: Card(
           color: Colors.white,
           elevation: 5.0,
-          shape: RoundedRectangleBorder(
-            borderRadius: const BorderRadius.all(Radius.circular(15.0)),
+          shape: const RoundedRectangleBorder(
+            borderRadius: BorderRadius.all(Radius.circular(15.0)),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -271,10 +276,9 @@ class _NetworkinScreenState extends State<NetworkinScreen> {
                     child: Row(
                       children: [
                         ClipOval(
-                          // Access imagePath directly from NetworkingClass
                           child: profile.imagePath.startsWith('http') || profile.imagePath.startsWith('https')
                               ? Image.network(
-                            profile.imagePath, // Direct access
+                            profile.imagePath,
                             width: 80,
                             height: 80,
                             fit: BoxFit.cover,
@@ -282,7 +286,7 @@ class _NetworkinScreenState extends State<NetworkinScreen> {
                             const Icon(Icons.person, size: 80, color: Colors.grey),
                           )
                               : Image.asset(
-                            'assets/ICON-EMEC.png', // Fallback local asset
+                            'assets/ICON-EMEC.png',
                             width: 80,
                             height: 80,
                             fit: BoxFit.cover,
@@ -295,7 +299,7 @@ class _NetworkinScreenState extends State<NetworkinScreen> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              profile.entreprise, // Direct access (was 'title' in old code)
+                              profile.entreprise,
                               style: const TextStyle(
                                 fontSize: 22,
                                 fontWeight: FontWeight.bold,
@@ -303,7 +307,7 @@ class _NetworkinScreenState extends State<NetworkinScreen> {
                               ),
                             ),
                             Text(
-                              profile.ville, // Direct access (was 'adress' in old code)
+                              profile.ville,
                               style: TextStyle(
                                 fontSize: 16,
                                 color: Colors.grey[600],
@@ -367,22 +371,21 @@ class _NetworkinScreenState extends State<NetworkinScreen> {
                   ],
                 ),
               ),
-              // Use Expanded to push remaining content to the bottom/fill space
               const Expanded(child: SizedBox.shrink()),
-              // You can add more details from NetworkingClass here, e.g.:
-              // Padding(
-              //   padding: const EdgeInsets.all(20.0),
-              //   child: Column(
-              //     crossAxisAlignment: CrossAxisAlignment.start,
-              //     children: [
-              //       Text('Activity: ${profile.activite}'),
-              //       Text('Website: ${profile.siteWeb}'),
-              //       Text('Stand: ${profile.stand}'),
-              //       Text('Meeting Duration: ${profile.duree ?? 'N/A'}'),
-              //       Text('Online Status: ${profile.onlineStatus ?? 'N/A'}'),
-              //     ],
-              //   ),
-              // ),
+              // You can uncomment and use the actual profile data here
+              /*
+              Padding(
+                 padding: const EdgeInsets.all(20.0),
+                 child: Column(
+                   crossAxisAlignment: CrossAxisAlignment.start,
+                   children: [
+                     Text('Activity: ${profile.activite}'),
+                     Text('Website: ${profile.siteWeb}'),
+                     Text('Stand: ${profile.stand}'),
+                   ],
+                 ),
+              ),
+              */
             ],
           ),
         ),
@@ -406,15 +409,10 @@ class _NetworkinScreenState extends State<NetworkinScreen> {
             print("Dismiss button pressed for ${_networkingProfiles[_currentPageIndex].entreprise}");
             _nextProfile();
           }, Colors.black),
-          // Star button: Hardcoded as there's no 'star' property in NetworkingClass yet.
-          // If you need this functionality, add `bool? isStarred;` to NetworkingClass and manage it.
           _buildActionButton(Icons.star_border, () {
             print("Star button pressed for ${_networkingProfiles[_currentPageIndex].entreprise}");
-            // If 'star' was a real property, you'd toggle it here and call setState
-            // _networkingProfiles[_currentPageIndex].isStarred = !_networkingProfiles[_currentPageIndex].isStarred;
-            // setState(() {});
             _nextProfile();
-          }, Colors.orange), // Example color
+          }, Colors.orange),
           _buildActionButton(Icons.calendar_today_outlined, () {
             print("Calendar button pressed for ${_networkingProfiles[_currentPageIndex].entreprise}");
             _nextProfile();
@@ -460,18 +458,17 @@ class _NetworkinScreenState extends State<NetworkinScreen> {
         height: 50,
         margin: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 10.0),
         decoration: BoxDecoration(
-          color: const Color(0xFFE50000), // Example color for "Match" button
+          color: const Color(0xFFE50000),
           borderRadius: BorderRadius.circular(10.0),
         ),
         child: TextButton(
           onPressed: () {
             print("Afficher mes matches button pressed!");
-            // Implement navigation to your matches screen here
           },
-          child: Row(
+          child: const Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Text(
+              Text(
                 'Afficher mes matches',
                 style: TextStyle(
                   color: Colors.white,
@@ -479,8 +476,8 @@ class _NetworkinScreenState extends State<NetworkinScreen> {
                   fontWeight: FontWeight.bold,
                 ),
               ),
-              const SizedBox(width: 10),
-              const Icon(Icons.arrow_forward, color: Colors.white, size: 24),
+              SizedBox(width: 10),
+              Icon(Icons.arrow_forward, color: Colors.white, size: 24),
             ],
           ),
         ),
