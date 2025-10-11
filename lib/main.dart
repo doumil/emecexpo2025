@@ -8,11 +8,13 @@ import 'package:badges/badges.dart' as badges;
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:app_badge_plus/app_badge_plus.dart';
 import 'package:provider/provider.dart';
+import 'package:connectivity_plus/connectivity_plus.dart';
+import 'package:emecexpo/services/onwillpop_services.dart';
 
 // Your custom imports
 import 'package:emecexpo/model/user_model.dart';
 import 'package:emecexpo/login_screen.dart';
-import 'package:emecexpo/home_screen.dart';
+import 'package:emecexpo/home_screen.dart'; // <-- Used here
 import 'package:emecexpo/Busniess%20Safe.dart';
 import 'package:emecexpo/Congress.dart';
 import 'package:emecexpo/Contact.dart';
@@ -41,8 +43,6 @@ import 'package:emecexpo/model/notification_model.dart';
 import 'package:emecexpo/my_drawer_header.dart';
 import 'package:emecexpo/Schedule.dart';
 import 'package:emecexpo/networking.dart';
-
-// NEW IMPORTS FOR NEW SCREENS
 import 'package:emecexpo/app_user_guide_screen.dart';
 import 'package:emecexpo/my_profile_screen.dart';
 import 'package:emecexpo/my_badge_screen.dart';
@@ -51,10 +51,16 @@ import 'package:emecexpo/scanned_badges_screen.dart';
 import 'conversations_screen.dart';
 import 'package:emecexpo/meeting_ratings_screen.dart';
 
-// Import your dynamic theme, home screen, and menu providers
+// Import your providers
 import 'package:emecexpo/providers/theme_provider.dart';
 import 'package:emecexpo/providers/home_provider.dart';
 import 'package:emecexpo/providers/menu_provider.dart';
+import 'package:emecexpo/connectivity_wrapper.dart';
+
+// 💡 NEW: Import the shared definitions from constants.dart
+import 'package:emecexpo/constants.dart';
+
+
 // Dull Page Placeholder
 class DullPage extends StatelessWidget {
   final String title;
@@ -129,6 +135,7 @@ void main() async {
           create: (_) => MenuProvider()..fetchMenuConfig(),
         ),
         ChangeNotifierProvider(create: (_) => HomeProvider()),
+        ChangeNotifierProvider(create: (_) => ConnectivityService()),
       ],
       child: MyApp(initialScreen: initialScreen),
     ),
@@ -162,52 +169,15 @@ class MyApp extends StatelessWidget {
           ),
         ),
       ),
-      home: initialScreen,
+      home: (initialScreen is WelcomPage)
+          ? AppContent(mainAppWidget: initialScreen)
+          : initialScreen,
     );
   }
 }
 
-enum DrawerSections {
-  home,
-  myAgenda,
-  networking,
-  congress,
-  speakers,
-  officialEvents,
-  partners,
-  exhibitors,
-  product,
-  act,
-  news,
-  eFP,
-  supportingP,
-  mediaP,
-  socialM,
-  contact,
-  information,
-  schedule,
-  getThere,
-  food,
-  business,
-  notifications,
-  congressmenu,
-  settings,
-  detailexhib,
-  detailcongress,
-  DetailNetworkin,
-
-  // NEW SECTIONS FROM DESIGN
-  appUserGuide,
-  myProfile,
-  myBadge,
-  favourites,
-  scannedBadges,
-  messages,
-  meetingRatings,
-  products,
-  congresses,
-  sponsors,
-}
+// ❌ REMOVED: Duplicate enum DrawerSections (now imported from constants.dart)
+// ❌ REMOVED: Duplicate typedef OnNavigateCallback (now imported from constants.dart)
 
 class WelcomPage extends StatefulWidget {
   final User? user;
@@ -283,13 +253,22 @@ class _WelcomPageState extends State<WelcomPage> {
     });
   }
 
+  // The navigation function, its signature now correctly matches the imported OnNavigateCallback
+  void _onNavigateToSection(DrawerSections section) {
+    setState(() {
+      currentPage = section;
+    });
+    if (_scaffoldKey.currentState?.isEndDrawerOpen ?? false) {
+      Navigator.pop(context);
+    }
+  }
+
+
   int _getBottomNavIndexForBottomNav() {
     if (currentPage == DrawerSections.home) {
       return 0;
     } else if (currentPage == DrawerSections.notifications) {
       return 1;
-    } else if (currentPage == DrawerSections.settings) {
-      return 2;
     }
     return 0;
   }
@@ -297,12 +276,16 @@ class _WelcomPageState extends State<WelcomPage> {
   @override
   Widget build(BuildContext context) {
     final themeProvider = Provider.of<ThemeProvider>(context);
-    final menuProvider = Provider.of<MenuProvider>(context);
+    final theme = themeProvider.currentTheme;
 
     Widget container;
+    // FIX APPLIED: Pass the required onNavigate callback to HomeScreen
     if (currentPage == DrawerSections.home) {
-      container = HomeScreen(user: _loggedInUser);
-   } else if (currentPage == DrawerSections.networking) {
+      container = HomeScreen(
+        user: _loggedInUser,
+        onNavigate: _onNavigateToSection,
+      );
+    } else if (currentPage == DrawerSections.networking) {
       container = NetworkinScreen();
     } else if (currentPage == DrawerSections.myAgenda) {
       container = MyAgendaScreen();
@@ -364,99 +347,108 @@ class _WelcomPageState extends State<WelcomPage> {
     } else if (currentPage == DrawerSections.sponsors) {
       container = SupportingPScreen();
     } else {
-      // ✅ Using the dull page as a fallback for any unimplemented sections
       container = const DullPage(title: 'Page Not Found');
     }
 
-    return Scaffold(
-      key: _scaffoldKey,
-      body: container,
-      endDrawer: Drawer(
-        child: SingleChildScrollView(
-          child: Container(
-            color: themeProvider.currentTheme.primaryColor,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                MyHeaderDrawer(user: _loggedInUser),
-                const SizedBox(height: 5.0),
-                Consumer<MenuProvider>(
-                  builder: (context, menuProvider, child) {
-                    final menuConfig = menuProvider.menuConfig;
-                    if (menuConfig == null) {
-                      return const Center(child: CircularProgressIndicator());
-                    }
-                    return MyDrawerList(theme: themeProvider, menuConfig: menuConfig);
-                  },
-                ),
-              ],
+    return WillPopScope(
+      onWillPop: OnWillPop().onWillPop1,
+      child: Scaffold(
+        key: _scaffoldKey,
+        body: container,
+        endDrawer: Drawer(
+          child: SingleChildScrollView(
+            child: Container(
+              color: theme.primaryColor,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  MyHeaderDrawer(user: _loggedInUser),
+                  const SizedBox(height: 5.0),
+                  Consumer<MenuProvider>(
+                    builder: (context, menuProvider, child) {
+                      final menuConfig = menuProvider.menuConfig;
+                      if (menuConfig == null) {
+                        return const Center(child: CircularProgressIndicator());
+                      }
+                      return MyDrawerList(
+                        theme: themeProvider,
+                        menuConfig: menuConfig,
+                        onNavigate: _onNavigateToSection,
+                        currentSection: currentPage,
+                      );
+                    },
+                  ),
+                ],
+              ),
             ),
           ),
         ),
-      ),
-      bottomNavigationBar: BottomNavigationBar(
-        items: <BottomNavigationBarItem>[
-          BottomNavigationBarItem(
-            icon: const Icon(Icons.home),
-            label: 'Home',
-          ),
-          BottomNavigationBarItem(
-            icon: ValueListenableBuilder<int>(
-              valueListenable: notificationCountNotifier,
-              builder: (context, count, child) {
-                return badges.Badge(
-                  showBadge: count > 0,
-                  badgeContent: Text(
-                    count.toString(),
-                    style: TextStyle(color: themeProvider.currentTheme.whiteColor, fontSize: 10),
-                  ),
-                  badgeStyle: badges.BadgeStyle(
-                    badgeColor: themeProvider.currentTheme.redColor,
-                    padding: const EdgeInsets.all(5),
-                  ),
-                  position: badges.BadgePosition.topEnd(top: -10, end: -12),
-                  child: const Icon(Icons.notifications),
-                );
-              },
+        bottomNavigationBar: BottomNavigationBar(
+          items: <BottomNavigationBarItem>[
+            BottomNavigationBarItem(
+              icon: const Icon(Icons.home),
+              label: 'Home',
             ),
-            label: 'Notifications',
-          ),
-          BottomNavigationBarItem(
-            icon: const Icon(Icons.menu),
-            label: 'Menu',
-          ),
-        ],
-        currentIndex: _getBottomNavIndexForBottomNav(),
-        selectedItemColor: themeProvider.currentTheme.secondaryColor,
-        unselectedItemColor: themeProvider.currentTheme.whiteColor,
-        backgroundColor: themeProvider.currentTheme.primaryColor,
-        onTap: (index) async {
-          setState(() {
+            BottomNavigationBarItem(
+              icon: ValueListenableBuilder<int>(
+                valueListenable: notificationCountNotifier,
+                builder: (context, count, child) {
+                  return badges.Badge(
+                    showBadge: count > 0,
+                    badgeContent: Text(
+                      count.toString(),
+                      style: TextStyle(color: theme.whiteColor, fontSize: 10),
+                    ),
+                    badgeStyle: badges.BadgeStyle(
+                      badgeColor: theme.redColor,
+                      padding: const EdgeInsets.all(5),
+                    ),
+                    position: badges.BadgePosition.topEnd(top: -10, end: -12),
+                    child: const Icon(Icons.notifications),
+                  );
+                },
+              ),
+              label: 'Notifications',
+            ),
+            BottomNavigationBarItem(
+              icon: const Icon(Icons.menu),
+              label: 'Menu',
+            ),
+          ],
+          currentIndex: _getBottomNavIndexForBottomNav(),
+          selectedItemColor: theme.secondaryColor,
+          unselectedItemColor: theme.whiteColor,
+          backgroundColor: theme.primaryColor,
+          onTap: (index) async {
             if (index == 0) {
-              currentPage = DrawerSections.home;
+              _onNavigateToSection(DrawerSections.home);
             } else if (index == 1) {
-              currentPage = DrawerSections.notifications;
+              _onNavigateToSection(DrawerSections.notifications);
               notificationCountNotifier.value = 0;
             } else if (index == 2) {
               _scaffoldKey.currentState?.openEndDrawer();
             }
-          });
-        },
+          },
+        ),
       ),
     );
   }
 
-  Widget MyDrawerList({required ThemeProvider theme, required MenuConfig menuConfig}) {
+  Widget MyDrawerList({
+    required ThemeProvider theme,
+    required MenuConfig menuConfig,
+    required OnNavigateCallback onNavigate,
+    required DrawerSections currentSection
+  }) {
     return Container(
       padding: const EdgeInsets.only(top: 15),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          menuItem(1, "Home", Icons.home, currentPage == DrawerSections.home),
-          menuItem(21, "Notifications", Icons.notifications, currentPage == DrawerSections.notifications),
+          menuItem(DrawerSections.home, "Home", Icons.home, currentSection == DrawerSections.home, onNavigate),
+          menuItem(DrawerSections.notifications, "Notifications", Icons.notifications, currentSection == DrawerSections.notifications, onNavigate),
 
           if (menuConfig.exhibitors) ...[
-            // ✅ FIX: Removed `const`
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
               child: Text(
@@ -468,26 +460,22 @@ class _WelcomPageState extends State<WelcomPage> {
                 ),
               ),
             ),
-            menuItem(24, "App User Guide", Icons.help_outline, currentPage == DrawerSections.appUserGuide),
             if (menuConfig.floorPlan)
-              menuItem(11, "Floor Plan", Icons.location_on_outlined, currentPage == DrawerSections.eFP),
+              menuItem(DrawerSections.eFP, "Floor Plan", Icons.location_on_outlined, currentSection == DrawerSections.eFP, onNavigate),
             if (menuConfig.exhibitors)
-              menuItem(7, "Exhibitors", Icons.store_mall_directory_outlined, currentPage == DrawerSections.exhibitors),
-/*            if (menuConfig.products)
-              menuItem(25, "Products", Icons.category_outlined, currentPage == DrawerSections.products),*/
+              menuItem(DrawerSections.exhibitors, "Exhibitors", Icons.store_mall_directory_outlined, currentSection == DrawerSections.exhibitors, onNavigate),
             if (menuConfig.speakers)
-              menuItem(4, "Speakers", Icons.speaker_notes_outlined, currentPage == DrawerSections.speakers),
+              menuItem(DrawerSections.speakers, "Speakers", Icons.speaker_notes_outlined, currentSection == DrawerSections.speakers, onNavigate),
             if (menuConfig.congresses)
-              menuItem(26, "Congresses", Icons.account_balance, currentPage == DrawerSections.congresses),
+              menuItem(DrawerSections.congresses, "Congresses", Icons.account_balance, currentSection == DrawerSections.congresses, onNavigate),
             if (menuConfig.sponsors)
-              menuItem(27, "Sponsors", Icons.favorite_outline, currentPage == DrawerSections.sponsors),
+              menuItem(DrawerSections.sponsors, "Sponsors", Icons.favorite_outline, currentSection == DrawerSections.sponsors, onNavigate),
             if (menuConfig.partners)
-              menuItem(6, "Partners", Icons.handshake_outlined, currentPage == DrawerSections.partners),
+              menuItem(DrawerSections.partners, "Partners", Icons.handshake_outlined, currentSection == DrawerSections.partners, onNavigate),
           ],
 
           const Divider(color: Colors.white24, height: 20),
 
-          // ✅ FIX: Removed `const`
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
             child: Text(
@@ -499,153 +487,38 @@ class _WelcomPageState extends State<WelcomPage> {
               ),
             ),
           ),
-          menuItem(28, "My Profile", Icons.person_outline, currentPage == DrawerSections.myProfile),
+          menuItem(DrawerSections.myProfile, "My Profile", Icons.person_outline, currentSection == DrawerSections.myProfile, onNavigate),
           if (menuConfig.badge)
-            menuItem(29, "My Badge", FontAwesomeIcons.idBadge, currentPage == DrawerSections.myBadge),
-          menuItem(30, "Favourites", Icons.favorite_outline, currentPage == DrawerSections.favourites),
-          menuItem(31, "Scanned Badges", Icons.qr_code_scanner, currentPage == DrawerSections.scannedBadges),
-          menuItem(32, "Messages", Icons.message_outlined, currentPage == DrawerSections.messages),
-          menuItem(19, "My Agenda", Icons.calendar_today_outlined, currentPage == DrawerSections.myAgenda),
-          menuItem(33, "Meeting ratings", Icons.star_border, currentPage == DrawerSections.meetingRatings),
-          menuItem(2, "Networking", Icons.people_outline, currentPage == DrawerSections.networking),
+            menuItem(DrawerSections.myBadge, "My Badge", FontAwesomeIcons.idBadge, currentSection == DrawerSections.myBadge, onNavigate),
+          menuItem(DrawerSections.favourites, "Favourites", Icons.favorite_outline, currentSection == DrawerSections.favourites, onNavigate),
+          menuItem(DrawerSections.scannedBadges, "Scanned Badges", Icons.qr_code_scanner, currentSection == DrawerSections.scannedBadges, onNavigate),
+          menuItem(DrawerSections.messages, "Messages", Icons.message_outlined, currentSection == DrawerSections.messages, onNavigate),
+          menuItem(DrawerSections.myAgenda, "My Agenda", Icons.calendar_today_outlined, currentSection == DrawerSections.myAgenda, onNavigate),
+          menuItem(DrawerSections.meetingRatings, "Meeting ratings", Icons.star_border, currentSection == DrawerSections.meetingRatings, onNavigate),
+          menuItem(DrawerSections.networking, "Networking", Icons.people_outline, currentSection == DrawerSections.networking, onNavigate),
 
           const Divider(color: Colors.white24, height: 20),
 
-          menuItem(15, "Contact", Icons.contact_mail_outlined, currentPage == DrawerSections.contact),
-          menuItem(18, "How to get there", Icons.directions_bus_outlined, currentPage == DrawerSections.getThere),
-          menuItem(14, "Social Media", FontAwesomeIcons.shareNodes, currentPage == DrawerSections.socialM),
-          menuItem(22, "Settings", Icons.settings_outlined, currentPage == DrawerSections.settings),
+          menuItem(DrawerSections.contact, "Contact", Icons.contact_mail_outlined, currentSection == DrawerSections.contact, onNavigate),
+          menuItem(DrawerSections.getThere, "How to get there", Icons.directions_bus_outlined, currentSection == DrawerSections.getThere, onNavigate),
+          menuItem(DrawerSections.socialM, "Social Media", FontAwesomeIcons.shareNodes, currentSection == DrawerSections.socialM, onNavigate),
+          menuItem(DrawerSections.settings, "Settings", Icons.settings_outlined, currentSection == DrawerSections.settings, onNavigate),
         ],
       ),
     );
   }
 
-  Widget menuItem(int id, String title, IconData icon, bool selected) {
+  Widget menuItem(DrawerSections section, String title, IconData icon, bool selected, OnNavigateCallback onNavigate) {
     final theme = Provider.of<ThemeProvider>(context, listen: false);
 
     return Material(
       color: selected ? Colors.white12 : Colors.transparent,
       child: InkWell(
         onTap: () {
-          Navigator.pop(context);
-          setState(() {
-            switch (id) {
-              case 1:
-                currentPage = DrawerSections.home;
-                break;
-              case 2:
-                currentPage = DrawerSections.networking;
-                break;
-              case 3:
-                currentPage = DrawerSections.congress;
-                break;
-              case 4:
-                currentPage = DrawerSections.speakers;
-                break;
-              case 6:
-                currentPage = DrawerSections.partners;
-                break;
-              case 7:
-                currentPage = DrawerSections.exhibitors;
-                break;
-              case 11:
-                currentPage = DrawerSections.eFP;
-                break;
-              case 12:
-                currentPage = DrawerSections.supportingP;
-                break;
-              case 14:
-                currentPage = DrawerSections.socialM;
-                break;
-              case 15:
-                currentPage = DrawerSections.contact;
-                break;
-              case 18:
-                currentPage = DrawerSections.getThere;
-                break;
-              case 19:
-                currentPage = DrawerSections.myAgenda;
-                break;
-              case 21:
-                currentPage = DrawerSections.notifications;
-                notificationCountNotifier.value = 0;
-                break;
-              case 22:
-                currentPage = DrawerSections.settings;
-                break;
-              case 24:
-                currentPage = DrawerSections.appUserGuide;
-                break;
-              case 25:
-                currentPage = DrawerSections.products;
-                break;
-              case 26:
-                currentPage = DrawerSections.congresses;
-                break;
-              case 27:
-                currentPage = DrawerSections.sponsors;
-                break;
-              case 28:
-                currentPage = DrawerSections.myProfile;
-                break;
-              case 29:
-                currentPage = DrawerSections.myBadge;
-                break;
-              case 30:
-                currentPage = DrawerSections.favourites;
-                break;
-              case 31:
-                currentPage = DrawerSections.scannedBadges;
-                break;
-              case 32:
-                currentPage = DrawerSections.messages;
-                break;
-              case 33:
-                currentPage = DrawerSections.meetingRatings;
-                break;
-              case 5:
-                currentPage = DrawerSections.officialEvents;
-                break;
-              case 8:
-                currentPage = DrawerSections.product;
-                break;
-              case 9:
-                currentPage = DrawerSections.act;
-                break;
-              case 10:
-                currentPage = DrawerSections.news;
-                break;
-              case 13:
-                currentPage = DrawerSections.mediaP;
-                break;
-              case 16:
-                currentPage = DrawerSections.information;
-                break;
-              case 17:
-                currentPage = DrawerSections.schedule;
-                break;
-              case 20:
-                currentPage = DrawerSections.business;
-                break;
-              case 23:
-                currentPage = DrawerSections.myAgenda;
-                break;
-              case 34:
-                currentPage = DrawerSections.congressmenu;
-                break;
-              case 35:
-                currentPage = DrawerSections.detailexhib;
-                break;
-              case 36:
-                currentPage = DrawerSections.detailcongress;
-                break;
-              case 37:
-                currentPage = DrawerSections.DetailNetworkin;
-                break;
-              default:
-                currentPage = DrawerSections.home;
-            }
-          });
+          onNavigate(section);
+          if (section == DrawerSections.notifications) {
+            notificationCountNotifier.value = 0;
+          }
         },
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),

@@ -62,12 +62,6 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         centerTitle: true,
         // ✅ The only line that has been changed to be dynamic
         backgroundColor: theme.primaryColor,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () {
-            Navigator.pop(context);
-          },
-        ),
       ),
       body: globalLitems.isEmpty
           ? Center(

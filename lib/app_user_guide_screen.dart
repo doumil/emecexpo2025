@@ -15,7 +15,7 @@ class AppUserGuideScreen extends StatelessWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('App User Guide'),
+        title: Center(child: const Text('App User Guide')),
         // ✅ Apply primaryColor from the theme
         backgroundColor: theme.primaryColor,
         // ✅ Apply whiteColor for the back button and title text

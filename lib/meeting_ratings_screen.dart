@@ -17,7 +17,7 @@ class MeetingRatingsScreen extends StatelessWidget {
       // ✅ Use a color from the theme for the Scaffold background
       backgroundColor: theme.whiteColor,
       appBar: AppBar(
-        title: const Text('Meeting Ratings'),
+        title: Center(child: const Text('Meeting Ratings')),
         // ✅ Use the primary color from the theme for the AppBar background
         backgroundColor: theme.primaryColor,
         // ✅ Use the white color from the theme for the foreground icons and text

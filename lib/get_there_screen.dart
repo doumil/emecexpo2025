@@ -3,8 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 import 'package:flutter_spinkit/flutter_spinkit.dart';
-import 'package:provider/provider.dart';
-import 'package:emecexpo/providers/theme_provider.dart';
+import 'package:provider/provider.dart'; // 💡 Import Provider
+import 'package:emecexpo/providers/theme_provider.dart'; // 💡 Import your ThemeProvider
 
 class GetThereScreen extends StatefulWidget {
   const GetThereScreen({Key? key}) : super(key: key);
@@ -16,10 +16,6 @@ class GetThereScreen extends StatefulWidget {
 class _GetThereScreenState extends State<GetThereScreen> {
   late final WebViewController _controller;
   bool isLoading = true;
-
-  // ✅ CORRECTED URL: Using the address for Foire Internationale De Casablanca
-  // and the reliable '?q=...&output=embed' format, prefixed with 'https://'.
-  static const String _mapsUrl = 'https://maps.google.com/?cid=3430024538058831571&g_mp=CiVnb29nbGUubWFwcy5wbGFjZXMudjEuUGxhY2VzLkdldFBsYWNl';
 
   @override
   void initState() {
@@ -37,27 +33,19 @@ class _GetThereScreenState extends State<GetThereScreen> {
             setState(() {
               isLoading = false;
             });
-            debugPrint('Web view error: ${error.errorCode}: ${error.description}');
+            print('Web view error: ${error.description}');
           },
         ),
       )
-    // Load the correctly formatted URL
-      ..loadRequest(Uri.parse(_mapsUrl));
+      ..loadRequest(Uri.parse('https://maps.google.com/maps?q=location&t=k&z=13&ie=UTF8&iwloc=&output=embed'));
   }
 
   Future<bool> _onWillPop() async {
-    // 1. Try to go back in the web view history
-    if (await _controller.canGoBack()) {
-      _controller.goBack();
-      return false;
-    }
-
-    // 2. If no web history, ask to exit the application
     return (await showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Êtes-vous sûr ?'),
-        content: const Text('Voulez-vous quitter l\'application ?'),
+        title: const Text('Êtes-vous sûr'),
+        content: const Text('Voulez-vous quitter une application'),
         actions: <Widget>[
           TextButton(
             onPressed: () => Navigator.of(context).pop(false),
@@ -65,7 +53,7 @@ class _GetThereScreenState extends State<GetThereScreen> {
           ),
           TextButton(
             onPressed: () => SystemNavigator.pop(),
-            child: const Text('Oui'),
+            child: const Text('Oui '),
           ),
         ],
       ),
@@ -74,7 +62,7 @@ class _GetThereScreenState extends State<GetThereScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // Access the theme provider
+    // 💡 Access the theme provider
     final themeProvider = Provider.of<ThemeProvider>(context);
     final theme = themeProvider.currentTheme;
 
@@ -84,25 +72,20 @@ class _GetThereScreenState extends State<GetThereScreen> {
         appBar: AppBar(
           title: const Text('How to get there'),
           centerTitle: true,
-          // Use primary color from the theme
+          // ✅ Use primary color from the theme
           backgroundColor: theme.primaryColor,
-          // Use white color from the theme
+          // ✅ Use white color from the theme
           foregroundColor: theme.whiteColor,
         ),
         body: Stack(
           children: [
-            // Display the WebView
             WebViewWidget(controller: _controller),
-
-            // Display loading indicator
             if (isLoading)
-              Container(
-                color: theme.whiteColor,
-                child: Center(
-                  child: SpinKitThreeBounce(
-                    color: theme.primaryColor,
-                    size: 30.0,
-                  ),
+              Center(
+                child: SpinKitThreeBounce(
+                  // ✅ Use primary color from the theme
+                  color: theme.primaryColor,
+                  size: 30.0,
                 ),
               ),
           ],

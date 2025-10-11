@@ -1,5 +1,3 @@
-// lib/home_screen.dart
-
 import 'dart:convert';
 import 'package:animate_do/animate_do.dart';
 import 'package:emecexpo/services/onwillpop_services.dart';
@@ -15,22 +13,31 @@ import 'package:emecexpo/providers/theme_provider.dart';
 import 'package:emecexpo/model/user_model.dart';
 import 'package:emecexpo/login_screen.dart';
 
-// Your specific screen imports for navigation
-import 'package:emecexpo/my_badge_screen.dart';
-import 'package:emecexpo/Expo%20Floor%20Plan.dart';
-import 'package:emecexpo/networking.dart';
-import 'package:emecexpo/Exhibitors.dart';
-import 'package:emecexpo/product.dart';
-import 'package:emecexpo/Congress.dart';
-import 'package:emecexpo/My%20Agenda.dart';
-import 'package:emecexpo/partners.dart';
-import 'package:emecexpo/Suporting%20Partners.dart';
-import 'package:emecexpo/Speakers.dart';
+// 💡 NEW: Import the shared definitions from constants.dart
+import 'package:emecexpo/constants.dart';
+
+
+// ❌ REMOVED: Duplicate typedef OnNavigateCallback (now imported from constants.dart)
+// ❌ REMOVED: Duplicate enum DrawerSections (now imported from constants.dart)
+
+// --- HELPER CLASS FOR MENU ITEMS ---
+class MenuItem {
+  final String title;
+  final IconData icon;
+  final DrawerSections section;
+  final String apiField;
+
+  MenuItem({required this.title, required this.icon, required this.section, required this.apiField});
+}
+// ----------------------------------------
 
 class HomeScreen extends StatefulWidget {
   final User? user;
+  // REQUIRED: The callback for navigation. This type is now correctly resolved
+  // via the single definition in constants.dart.
+  final OnNavigateCallback onNavigate;
 
-  const HomeScreen({Key? key, this.user}) : super(key: key);
+  const HomeScreen({Key? key, this.user, required this.onNavigate}) : super(key: key);
 
   @override
   _HomeScreenState createState() => _HomeScreenState();
@@ -40,21 +47,17 @@ class _HomeScreenState extends State<HomeScreen> {
   User? _loggedInUser;
   late SharedPreferences prefs;
 
-  // Confirmed URL for the large banner image
   static const String _bannerImageUrl = 'https://buzzevents.co/uploads/800x400-EMECEXPO-2025.jpg';
 
   @override
   void initState() {
     super.initState();
     _initializeUserAndToken();
-
-    // 💡 Fetch the menu configuration immediately after the widget is mounted
     WidgetsBinding.instance.addPostFrameCallback((_) {
       Provider.of<MenuProvider>(context, listen: false).fetchMenuConfig();
     });
   }
 
-  // Method to handle loading user data and token
   _initializeUserAndToken() async {
     prefs = await SharedPreferences.getInstance();
     User? userFromWidget = widget.user;
@@ -92,22 +95,99 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  // Helper method to map to DrawerSections
+  List<MenuItem> _getVisibleMenuItems(MenuConfig menuConfig) {
+    // Define all possible items and map them to their corresponding MenuConfig property
+    final List<Map<String, dynamic>> allItems = [
+      {'title': 'My Badge', 'icon': Icons.qr_code_scanner, 'section': DrawerSections.myBadge, 'field': menuConfig.badge},
+      {'title': 'Floor Plan', 'icon': Icons.location_on_outlined, 'section': DrawerSections.eFP, 'field': menuConfig.floorPlan},
+      {'title': 'Networking', 'icon': Icons.people_outline, 'section': DrawerSections.networking, 'field': menuConfig.networking},
+      {'title': 'Exhibitors', 'icon': Icons.store_mall_directory_outlined, 'section': DrawerSections.exhibitors, 'field': menuConfig.exhibitors},
+      {'title': 'Products', 'icon': Icons.category_outlined, 'section': DrawerSections.products, 'field': menuConfig.products},
+      {'title': 'Conferences', 'icon': Icons.account_balance, 'section': DrawerSections.congresses, 'field': menuConfig.congresses},
+      {'title': 'Speakers', 'icon': Icons.person_outline, 'section': DrawerSections.speakers, 'field': menuConfig.speakers},
+      {'title': 'My Agenda', 'icon': Icons.calendar_today_outlined, 'section': DrawerSections.myAgenda, 'field': menuConfig.program},
+      {'title': 'Institutional\nPartners', 'icon': Icons.handshake_outlined, 'section': DrawerSections.partners, 'field': menuConfig.partners},
+      {'title': 'Sponsors', 'icon': Icons.favorite_outline, 'section': DrawerSections.sponsors, 'field': menuConfig.sponsors},
+      // ... add other items as needed
+    ];
+
+    return allItems
+        .where((item) => item['field'] == true)
+        .map((item) => MenuItem(
+      title: item['title'] as String,
+      icon: item['icon'] as IconData,
+      section: item['section'] as DrawerSections,
+      apiField: item['field'].toString(),
+    ))
+        .toList();
+  }
+
+  // Single, flexible card builder
+  Widget _buildFlexibleMenuCard({
+    required BuildContext context,
+    required MenuItem item,
+    required double cardHeight,
+    required double iconSize,
+    required double fontSize,
+    required double horizontalPadding,
+    required ThemeProvider themeProvider,
+    bool isWide = false,
+  }) {
+    final theme = themeProvider.currentTheme;
+    return GestureDetector(
+      onTap: () {
+        // Use the passed callback for navigation
+        widget.onNavigate(item.section);
+      },
+      child: Container(
+        height: cardHeight,
+        decoration: BoxDecoration(
+          color: theme.primaryColor.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(20.0),
+          border: Border.all(color: theme.whiteColor.withOpacity(0.2)),
+        ),
+        padding: EdgeInsets.symmetric(
+            horizontal: horizontalPadding, vertical: isWide ? 15 : 10),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          crossAxisAlignment: isWide
+              ? CrossAxisAlignment.start
+              : CrossAxisAlignment.center,
+          children: <Widget>[
+            Icon(
+              item.icon,
+              size: iconSize,
+              color: theme.secondaryColor,
+            ),
+            SizedBox(height: isWide ? 12.0 : 8.0),
+            Text(
+              item.title,
+              textAlign: isWide ? TextAlign.left : TextAlign.center,
+              style: TextStyle(
+                color: theme.whiteColor,
+                fontSize: fontSize,
+                fontWeight: isWide ? FontWeight.w600 : FontWeight.w500,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     double height = MediaQuery.of(context).size.height;
     double width = MediaQuery.of(context).size.width;
-    OnWillPop on = OnWillPop();
 
-    // Access the theme provider and theme colors
     final themeProvider = Provider.of<ThemeProvider>(context);
     final theme = themeProvider.currentTheme;
 
-    // Use a Consumer to rebuild the UI when the MenuProvider data changes
     return Consumer<MenuProvider>(
       builder: (context, menuProvider, child) {
         final menuConfig = menuProvider.menuConfig;
 
-        // Show a loading indicator if the API data is not yet available
         if (menuConfig == null) {
           return Scaffold(
             backgroundColor: theme.blackColor,
@@ -117,13 +197,151 @@ class _HomeScreenState extends State<HomeScreen> {
           );
         }
 
+        // 1. Get the final, filtered list of items
+        final List<MenuItem> visibleMenuItems = _getVisibleMenuItems(
+            menuConfig);
+        final int itemCount = visibleMenuItems.length;
+
+        // 2. Build the dynamic menu grid based on the number of items
+        final List<Widget> menuWidgets = [];
+        int index = 0;
+        final double hSpacing = width * 0.04; // Horizontal spacing
+        final double vSpacing = height * 0.025; // Vertical spacing
+
+        while (index < itemCount) {
+          // --- ODD Layout Check (Only for the FIRST row, and only if 3+ items exist) ---
+          if (index == 0 && (itemCount % 2 != 0) && itemCount >= 3) {
+            // 1 Big Card (left) + 2 Small Cards (right)
+
+            // Card 1: Big Card (e.g., My Badge style)
+            final bigCard = _buildFlexibleMenuCard(
+              context: context,
+              item: visibleMenuItems[index],
+              cardHeight: height * 0.28,
+              iconSize: 60,
+              fontSize: 22.0,
+              horizontalPadding: width * 0.05,
+              themeProvider: themeProvider,
+              isWide: true,
+            );
+
+            // Card 2 & 3: Two small cards
+            final smallCard1 = _buildFlexibleMenuCard(
+              context: context,
+              item: visibleMenuItems[index + 1],
+              cardHeight: height * 0.13,
+              iconSize: 40,
+              fontSize: 15.0,
+              horizontalPadding: width * 0.03,
+              themeProvider: themeProvider,
+            );
+
+            final smallCard2 = _buildFlexibleMenuCard(
+              context: context,
+              item: visibleMenuItems[index + 2],
+              cardHeight: height * 0.13,
+              iconSize: 40,
+              fontSize: 15.0,
+              horizontalPadding: width * 0.03,
+              themeProvider: themeProvider,
+            );
+
+            // Assemble the special row
+            menuWidgets.add(
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(flex: 3, child: bigCard), // 60% width
+                  SizedBox(width: hSpacing),
+                  Expanded(
+                    flex: 2, // 40% width
+                    child: Column(
+                      children: [
+                        smallCard1,
+                        SizedBox(height: height * 0.018),
+                        smallCard2,
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            );
+            menuWidgets.add(SizedBox(height: vSpacing));
+            index += 3; // Advance index by 3
+
+          }
+          // --- EVEN Layout Check (Default 2 Rectangles per line) ---
+          else {
+            // Check if there are at least two cards remaining for a full row
+            if (itemCount - index >= 2) {
+              final card1 = _buildFlexibleMenuCard(
+                context: context,
+                item: visibleMenuItems[index],
+                cardHeight: height * 0.2,
+                iconSize: 40,
+                fontSize: 15.0,
+                horizontalPadding: width * 0.03,
+                themeProvider: themeProvider,
+              );
+              final card2 = _buildFlexibleMenuCard(
+                context: context,
+                item: visibleMenuItems[index + 1],
+                cardHeight: height * 0.2,
+                iconSize: 40,
+                fontSize: 15.0,
+                horizontalPadding: width * 0.03,
+                themeProvider: themeProvider,
+              );
+
+              // Assemble the two-column row
+              menuWidgets.add(
+                Row(
+                  children: [
+                    Expanded(child: card1),
+                    SizedBox(width: hSpacing),
+                    Expanded(child: card2),
+                  ],
+                ),
+              );
+              menuWidgets.add(SizedBox(height: vSpacing));
+              index += 2; // Advance index by 2
+
+            } else if (itemCount - index == 1) {
+              // Last remaining card
+              final singleCard = _buildFlexibleMenuCard(
+                context: context,
+                item: visibleMenuItems[index],
+                cardHeight: height * 0.2,
+                iconSize: 40,
+                fontSize: 15.0,
+                horizontalPadding: width * 0.03,
+                themeProvider: themeProvider,
+              );
+
+              // Show the final single card using the standard two-column Row for space consistency
+              menuWidgets.add(
+                Row(
+                  children: [
+                    Expanded(child: singleCard),
+                    Expanded(child: SizedBox()),
+                    // Fill space to maintain layout structure
+                  ],
+                ),
+              );
+              menuWidgets.add(SizedBox(height: vSpacing));
+              index += 1; // Advance index by 1
+            }
+          }
+        }
+        // --- END Dynamic Menu Building ---
+
+
         return WillPopScope(
-          onWillPop: on.onWillPop1,
+          onWillPop: OnWillPop().onWillPop1,
           child: Scaffold(
             appBar: AppBar(
               title: Center(
                 child: Text(
-                  // Use title from API if necessary, otherwise the user name
                   'Welcome, ${_loggedInUser?.name ?? 'Guest'}!',
                   style: TextStyle(
                     fontSize: 24,
@@ -146,12 +364,9 @@ class _HomeScreenState extends State<HomeScreen> {
               ],
               elevation: 0,
             ),
-
-            // NOTE: You will likely want to implement a Drawer here
-            // and use the menuConfig booleans to build the Drawer items as well.
-
             body: LayoutBuilder(
-              builder: (BuildContext context, BoxConstraints viewportConstraints) {
+              builder: (BuildContext context,
+                  BoxConstraints viewportConstraints) {
                 return SingleChildScrollView(
                   child: FadeInDown(
                     duration: const Duration(milliseconds: 500),
@@ -169,163 +384,45 @@ class _HomeScreenState extends State<HomeScreen> {
                       padding: EdgeInsets.symmetric(
                           horizontal: width * 0.04, vertical: height * 0.02),
                       child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
-                          // 💡 DYNAMIC BANNER IMAGE USING CONFIRMED URL 💡
+                          // DYNAMIC BANNER IMAGE
                           Container(
                             padding: EdgeInsets.fromLTRB(
-                                width * 0.04, width * 0.04, width * 0.04, width * 0.01),
+                                width * 0.04, width * 0.04, width * 0.04,
+                                width * 0.01),
                             child: Image.network(
                               _bannerImageUrl,
                               fit: BoxFit.contain,
-                              loadingBuilder: (BuildContext context, Widget child, ImageChunkEvent? loadingProgress) {
+                              loadingBuilder: (BuildContext context,
+                                  Widget child,
+                                  ImageChunkEvent? loadingProgress) {
                                 if (loadingProgress == null) return child;
                                 return Center(
                                   child: LinearProgressIndicator(
-                                    value: loadingProgress.expectedTotalBytes != null
-                                        ? loadingProgress.cumulativeBytesLoaded / loadingProgress.expectedTotalBytes!
+                                    value: loadingProgress.expectedTotalBytes !=
+                                        null
+                                        ? loadingProgress
+                                        .cumulativeBytesLoaded / loadingProgress
+                                        .expectedTotalBytes!
                                         : null,
                                     color: theme.secondaryColor,
-                                    backgroundColor: theme.whiteColor.withOpacity(0.3),
+                                    backgroundColor: theme.whiteColor
+                                        .withOpacity(0.3),
                                   ),
                                 );
                               },
                               errorBuilder: (context, error, stackTrace) {
-                                // Fallback to a placeholder asset if network fails
-                                return Image.asset("assets/banner.png", fit: BoxFit.contain);
+                                return Image.asset(
+                                    "assets/banner.png", fit: BoxFit.contain);
                               },
                             ),
                           ),
-                          // 💡 END DYNAMIC BANNER IMAGE 💡
 
                           SizedBox(height: height * 0.02),
 
-                          // Row for "My Badge" and other cards, conditionally rendered
-                          Row(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              // "My Badge" card
-                              if (menuConfig.badge)
-                                Expanded(
-                                  flex: 3,
-                                  child: SizedBox(
-                                    height: height * 0.28,
-                                    child: _buildMyBadgeCard(
-                                      context: context,
-                                      title: 'My Badge',
-                                      icon: Icons.qr_code_scanner,
-                                      screen: const MyBadgeScreen(),
-                                      width: width,
-                                      themeProvider: themeProvider,
-                                    ),
-                                  ),
-                                ),
-                              // Adjust spacing based on whether the badge is shown
-                              if (menuConfig.badge && (menuConfig.floorPlan || menuConfig.networking))
-                                SizedBox(width: width * 0.099),
-
-                              // Column for Floor Plan and Networking
-                              Expanded(
-                                flex: 2,
-                                child: Column(
-                                  children: [
-                                    if (menuConfig.floorPlan)
-                                      SizedBox(
-                                        height: height * 0.13,
-                                        child: _buildGridCard(
-                                          context: context,
-                                          title: 'Floor Plan',
-                                          icon: Icons.location_on_outlined,
-                                          screen: EFPScreen(),
-                                          width: width,
-                                          themeProvider: themeProvider,
-                                        ),
-                                      ),
-                                    if (menuConfig.floorPlan && menuConfig.networking)
-                                      SizedBox(height: height * 0.018),
-                                    if (menuConfig.networking)
-                                      SizedBox(
-                                        height: height * 0.13,
-                                        child: _buildGridCard(
-                                          context: context,
-                                          title: 'Networking',
-                                          icon: Icons.people_outline,
-                                          screen: NetworkinScreen(),
-                                          width: width,
-                                          themeProvider: themeProvider,
-                                        ),
-                                      ),
-                                  ],
-                                ),
-                              ),
-                            ],
-                          ),
-                          SizedBox(height: height * 0.025),
-
-                          // Remaining cards in a GridView, conditionally rendered
-                          GridView.count(
-                            shrinkWrap: true,
-                            physics: const NeverScrollableScrollPhysics(),
-                            crossAxisCount: 2,
-                            childAspectRatio: 1.1,
-                            crossAxisSpacing: width * 0.04,
-                            mainAxisSpacing: height * 0.025,
-                            children: <Widget>[
-                              if (menuConfig.exhibitors)
-                                _buildGridCard(
-                                  context: context,
-                                  title: 'Exhibitors',
-                                  icon: Icons.store_mall_directory_outlined,
-                                  screen: ExhibitorsScreen(),
-                                  width: width,
-                                  themeProvider: themeProvider,
-                                ),
-                              if (menuConfig.products) // Will be hidden if 'products' is false or missing
-                                _buildGridCard(
-                                  context: context,
-                                  title: 'Products',
-                                  icon: Icons.category_outlined,
-                                  screen: ProductScreen(),
-                                  width: width,
-                                  themeProvider: themeProvider,
-                                ),
-                              if (menuConfig.congresses)
-                                _buildGridCard(
-                                  context: context,
-                                  title: 'Conferences',
-                                  icon: Icons.speaker_notes_outlined,
-                                  screen: CongressScreen(),
-                                  width: width,
-                                  themeProvider: themeProvider,
-                                ),
-                              if (menuConfig.program)
-                                _buildGridCard(
-                                  context: context,
-                                  title: 'My Agenda',
-                                  icon: Icons.calendar_today_outlined,
-                                  screen: MyAgendaScreen(),
-                                  width: width,
-                                  themeProvider: themeProvider,
-                                ),
-                              if (menuConfig.partners)
-                                _buildGridCard(
-                                  context: context,
-                                  title: 'Institutional\nPartners',
-                                  icon: Icons.handshake_outlined,
-                                  screen: PartnersScreen(),
-                                  width: width,
-                                  themeProvider: themeProvider,
-                                ),
-                              if (menuConfig.sponsors)
-                                _buildGridCard(
-                                  context: context,
-                                  title: 'Sponsors',
-                                  icon: Icons.favorite_outline,
-                                  screen: SupportingPScreen(),
-                                  width: width,
-                                  themeProvider: themeProvider,
-                                ),
-                            ],
-                          ),
+                          // DYNAMIC MENU WIDGETS
+                          ...menuWidgets,
                         ],
                       ),
                     ),
@@ -336,108 +433,6 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         );
       },
-    );
-  }
-
-  // Updated function to accept themeProvider
-  Widget _buildMyBadgeCard({
-    required BuildContext context,
-    required String title,
-    required IconData icon,
-    required Widget screen,
-    required double width,
-    required ThemeProvider themeProvider,
-  }) {
-    final theme = themeProvider.currentTheme;
-    return GestureDetector(
-      onTap: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (context) => screen),
-        );
-      },
-      child: Container(
-        decoration: BoxDecoration(
-          color: theme.primaryColor.withOpacity(0.1),
-          borderRadius: BorderRadius.circular(20.0),
-          border: Border.all(
-              color: theme.whiteColor.withOpacity(0.2)
-          ),
-        ),
-        padding: EdgeInsets.only(left: width * 0.05, top: width * 0.05, bottom: width * 0.05),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: <Widget>[
-            Icon(
-              icon,
-              size: 60,
-              color: theme.secondaryColor,
-            ),
-            const SizedBox(height: 12.0),
-            Text(
-              title,
-              textAlign: TextAlign.left,
-              style: TextStyle(
-                color: theme.whiteColor,
-                fontSize: 22.0,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  // Updated function to accept themeProvider
-  Widget _buildGridCard({
-    required BuildContext context,
-    required String title,
-    required IconData icon,
-    required Widget screen,
-    required double width,
-    required ThemeProvider themeProvider,
-  }) {
-    final theme = themeProvider.currentTheme;
-    return GestureDetector(
-      onTap: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (context) => screen),
-        );
-      },
-      child: Container(
-        decoration: BoxDecoration(
-          color: theme.primaryColor.withOpacity(0.1),
-          borderRadius: BorderRadius.circular(20.0),
-          border: Border.all(
-              color: theme.whiteColor.withOpacity(0.2)
-          ),
-        ),
-        padding: EdgeInsets.all(width * 0.03),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: <Widget>[
-            Icon(
-              icon,
-              size: 40,
-              color: theme.secondaryColor,
-            ),
-            const SizedBox(height: 8.0),
-            Text(
-              title,
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                color: theme.whiteColor,
-                fontSize: 15.0,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-          ],
-        ),
-      ),
     );
   }
 }

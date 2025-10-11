@@ -54,6 +54,7 @@ dependencies:
   fluttertoast: any
   #flutter_local_notifications: any
   timezone: any
+  connectivity_plus:
   rxdart: any
   get: any
   file_picker: any
