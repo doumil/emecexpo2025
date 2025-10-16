@@ -5,6 +5,10 @@ import 'package:emecexpo/model/message_model.dart';
 import 'package:emecexpo/messages_screen.dart';
 import 'package:provider/provider.dart'; // 💡 Import Provider
 import 'package:emecexpo/providers/theme_provider.dart'; // 💡 Import ThemeProvider
+import 'package:shared_preferences/shared_preferences.dart';
+
+import 'main.dart';
+
 
 class ConversationsScreen extends StatefulWidget {
   const ConversationsScreen({super.key});
@@ -14,6 +18,7 @@ class ConversationsScreen extends StatefulWidget {
 }
 
 class _ConversationsScreenState extends State<ConversationsScreen> {
+  late SharedPreferences prefs;
   List<Conversation> _conversations = [];
   bool _isLoading = true;
 
@@ -131,6 +136,15 @@ class _ConversationsScreenState extends State<ConversationsScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Messages'),
+        leading: IconButton(
+          icon: Icon(Icons.arrow_back_ios, color: Colors.white), // Assuming a light icon on a colored AppBar
+          onPressed: () async{
+            prefs = await SharedPreferences.getInstance();
+            prefs.setString("Data", "99");
+            Navigator.pushReplacement(
+                context, MaterialPageRoute(builder: (context) => WelcomPage()));
+          },
+        ),
         // ✅ Apply primaryColor from the theme
         backgroundColor: theme.primaryColor,
         // ✅ Apply whiteColor for the text and icons

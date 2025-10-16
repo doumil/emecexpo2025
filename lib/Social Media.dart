@@ -7,10 +7,13 @@ import 'package:flutter/services.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:provider/provider.dart'; // 💡 Import Provider
 import 'package:emecexpo/providers/theme_provider.dart'; // 💡 Import your ThemeProvider
+import 'main.dart';
 import 'model/app_theme_data.dart'; // 💡 Import your AppThemeData
 import 'package:emecexpo/tabs/FACEBOOK.dart';
 import 'package:emecexpo/tabs/INSTAGRAM.dart';
 import 'package:emecexpo/tabs/LINKEDIN.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
 
 class SocialMScreen extends StatefulWidget {
   const SocialMScreen({Key? key}) : super(key: key);
@@ -49,6 +52,7 @@ class _SocialMScreenState extends State<SocialMScreen> {
 
   @override
   Widget build(BuildContext context) {
+    late SharedPreferences prefs;
     final theme = Provider.of<ThemeProvider>(context).currentTheme;
 
     return DefaultTabController(
@@ -59,6 +63,15 @@ class _SocialMScreenState extends State<SocialMScreen> {
             title: Text(
               "Social Media",
               style: TextStyle(color: theme.whiteColor, fontWeight: FontWeight.bold),
+            ),
+            leading: IconButton(
+              icon: Icon(Icons.arrow_back_ios, color: Colors.white), // Assuming a light icon on a colored AppBar
+              onPressed: () async{
+                prefs = await SharedPreferences.getInstance();
+                prefs.setString("Data", "99");
+                Navigator.pushReplacement(
+                    context, MaterialPageRoute(builder: (context) => WelcomPage()));
+              },
             ),
             backgroundColor: theme.primaryColor,
             elevation: 0,

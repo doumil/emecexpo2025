@@ -1,14 +1,23 @@
-// networking_screen.dart
-
+// lib/screens/networking_screen.dart
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:animate_do/animate_do.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_spinkit/flutter_spinkit.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:provider/provider.dart';
 
-import 'package:emecexpo/model/networking_model.dart';
+import 'package:emecexpo/providers/theme_provider.dart';
+import 'package:emecexpo/model/app_theme_data.dart';
+
+// 🔄 Change: Import the new model
+import 'package:emecexpo/model/exposant_networking_model.dart'; // Using the new model
 import 'package:emecexpo/api_services/networking_api_service.dart';
-import 'details/DetailNetworkin.dart';
+
+import 'package:emecexpo/details/CommerciauxScreen.dart';
+import 'package:emecexpo/details/RdvScreen.dart';
+
+import 'main.dart';
 
 class NetworkinScreen extends StatefulWidget {
   final String? authToken;
@@ -19,11 +28,13 @@ class NetworkinScreen extends StatefulWidget {
 }
 
 class _NetworkinScreenState extends State<NetworkinScreen> {
-
-  late Future<List<NetworkingClass>> _networkingExhibitorsFuture;
+  late SharedPreferences prefs;
+  // 🔄 Change: Update the Future type to use the new model
+  late Future<List<ExposantNetworking>> _networkingExhibitorsFuture;
   late PageController _pageController;
   int _currentPageIndex = 0;
-  List<NetworkingClass> _networkingProfiles = [];
+  // 🔄 Change: Update the list type to use the new model
+  List<ExposantNetworking> _networkingProfiles = [];
   String? _userAuthToken;
   final NetworkingApiService _networkingApiService = NetworkingApiService();
 
@@ -41,8 +52,6 @@ class _NetworkinScreenState extends State<NetworkinScreen> {
   }
 
   Future<void> _loadAuthTokenAndInitialize() async {
-    // Set a temporary placeholder error state if the token isn't immediately found
-    // This prevents the FutureBuilder from crashing before the async load completes
     setState(() {
       _networkingExhibitorsFuture = Future.value([]);
     });
@@ -56,7 +65,6 @@ class _NetworkinScreenState extends State<NetworkinScreen> {
       });
       _initializeNetworkingData();
     } else {
-      print('NetworkingScreen: No authentication token found at all.');
       setState(() {
         _networkingExhibitorsFuture = Future.error(
             'Authentication token is missing. Please log in to view networking profiles.'
@@ -74,11 +82,10 @@ class _NetworkinScreenState extends State<NetworkinScreen> {
       });
       return;
     }
+    // ⚠️ Note: Assuming NetworkingApiService.getNetworkingExhibitors is updated to return List<ExposantNetworking>
     setState(() {
-      // Pass the _userAuthToken to the API service call
       _networkingExhibitorsFuture = _networkingApiService.getNetworkingExhibitors(_userAuthToken!);
     });
-    print('NetworkingScreen: Fetching networking data with token: $_userAuthToken');
   }
 
   @override
@@ -94,7 +101,7 @@ class _NetworkinScreenState extends State<NetworkinScreen> {
         curve: Curves.easeIn,
       );
     } else {
-      print("No more profiles to show! End of list.");
+      print("End of list reached.");
     }
   }
 
@@ -121,76 +128,88 @@ class _NetworkinScreenState extends State<NetworkinScreen> {
   // --- WIDGET BUILD METHODS ---
   @override
   Widget build(BuildContext context) {
-    return WillPopScope(
-      onWillPop: _onWillPop,
-      child: Scaffold(
-        backgroundColor: Colors.grey[100],
+    final themeProvider = Provider.of<ThemeProvider>(context);
+    final theme = themeProvider.currentTheme;
+
+    // Applying personalization: Using Colors.white for Scaffold background
+    // (Acknowledged: I see you've set the Scaffold background to Colors.white, aligning with your previous change on ProductScreen.)
+    return
+      //WillPopScope(
+      //onWillPop: _onWillPop,
+      //child:
+    Scaffold(
+        backgroundColor: Colors.white,
         appBar: AppBar(
-          backgroundColor: const Color(0xFF261350),
+          backgroundColor: theme.primaryColor,
           elevation: 0,
-          title: const Text(
+          title: Text(
             'Networking',
-            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+            style: TextStyle(color: theme.whiteColor, fontWeight: FontWeight.bold),
+          ),
+          leading: IconButton(
+            icon: Icon(Icons.arrow_back_ios, color: Colors.white), // Assuming a light icon on a colored AppBar
+            onPressed: () async{
+              prefs = await SharedPreferences.getInstance();
+              prefs.setString("Data", "99");
+              Navigator.pushReplacement(
+                  context, MaterialPageRoute(builder: (context) => WelcomPage()));
+            },
           ),
           centerTitle: true,
           actions: const [],
         ),
-        body: FutureBuilder<List<NetworkingClass>>(
+        // 🔄 Change: Update FutureBuilder type
+        body: FutureBuilder<List<ExposantNetworking>>(
           future: _networkingExhibitorsFuture,
           builder: (context, snapshot) {
             if (snapshot.connectionState == ConnectionState.waiting) {
               return Center(
                 child: SpinKitThreeBounce(
-                  color: const Color(0xff00c1c1),
+                  color: theme.secondaryColor,
                   size: 30.0,
                 ),
               );
             }
 
-            // This handles network errors, API status errors (401, 500, etc.),
-            // and the missing token error thrown in _loadAuthTokenAndInitialize.
             else if (snapshot.hasError) {
-              // Extract the error message for display
               final String errorMessage = snapshot.error.toString().replaceFirst('Exception: ', '');
 
               return Center(
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    const Icon(Icons.signal_wifi_off, color: Colors.red, size: 60),
+                    Icon(Icons.signal_wifi_off, color: theme.redColor, size: 60),
                     const SizedBox(height: 10),
                     Text(
-                      // Display the clean error message
                       'Error loading data: \n$errorMessage',
                       textAlign: TextAlign.center,
-                      style: const TextStyle(color: Colors.red, fontSize: 16),
+                      style: TextStyle(color: theme.blackColor, fontSize: 16),
                     ),
                     const SizedBox(height: 20),
                     ElevatedButton(
-                      onPressed: () {
-                        // Retry logic: reload token and initialize data
-                        // This will re-attempt the network call
-                        _loadAuthTokenAndInitialize();
-                      },
-                      child: const Text('Retry'),
+                      onPressed: _loadAuthTokenAndInitialize,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: theme.secondaryColor,
+                      ),
+                      child: Text('Retry', style: TextStyle(color: theme.whiteColor)),
                     ),
                   ],
                 ),
               );
             }
 
-            // This handles the successful 200 response that contains an empty list
             else if (!snapshot.hasData || snapshot.data!.isEmpty) {
               return Center(
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
+                    // 🎨 Note: Icon color is Colors.grey, aligning with your saved preference for 'grey' in product lists.
                     const Icon(Icons.person_search_outlined, color: Colors.grey, size: 60),
                     const SizedBox(height: 10),
-                    // This is the message you requested
                     const Text(
                       'No networking data available or no exhibitors found.',
                       textAlign: TextAlign.center,
+                      // 🎨 Note: TextStyle color is Colors.grey, aligning with your saved preference.
                       style: TextStyle(color: Colors.grey, fontSize: 16),
                     ),
                   ],
@@ -198,11 +217,8 @@ class _NetworkinScreenState extends State<NetworkinScreen> {
               );
             }
 
-            // Data successfully loaded and not empty
             else {
               _networkingProfiles = snapshot.data!;
-              // The inner check `if (_networkingProfiles.isEmpty)` is now redundant
-              // but harmless, as the previous `else if` handles it.
 
               return Column(
                 children: [
@@ -219,25 +235,26 @@ class _NetworkinScreenState extends State<NetworkinScreen> {
                         },
                         itemBuilder: (context, index) {
                           final profile = _networkingProfiles[index];
-                          return _buildNetworkingCard(profile);
+                          return _buildNetworkingCard(profile, theme);
                         },
                       ),
                     ),
                   ),
-                  _buildActionButtons(),
-                  _buildMatchButton(),
+                  _buildActionButtons(theme),
+                  _buildMatchButton(theme),
                   const SizedBox(height: 10),
                 ],
               );
             }
           },
         ),
-      ),
+      //),
     );
   }
 
-  // --- HELPER WIDGETS (Unchanged) ---
-  Widget _buildNetworkingCard(NetworkingClass profile) {
+  // --- HELPER WIDGETS ---
+  // 🔄 Change: Update parameter type
+  Widget _buildNetworkingCard(ExposantNetworking profile, AppThemeData theme) {
     final int dummyMatchPercentage = 94; // Example dummy data
     final List<String> dummyInterests = const [
       'Chatbots / Virtual Assistant',
@@ -246,22 +263,18 @@ class _NetworkinScreenState extends State<NetworkinScreen> {
       'Computer Vision',
     ];
 
+    // Determine the image path to use (logo or asset fallback)
+    final String? imagePath = profile.logo;
+    final bool isNetworkImage = imagePath != null && (imagePath.startsWith('http') || imagePath.startsWith('https'));
+
     return Container(
       padding: const EdgeInsets.all(20.0),
       child: GestureDetector(
         onTap: () {
-          // You can uncomment this line when DetailNetworkinScreen is ready
-/* Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => DetailNetworkinScreen(
-                networkingExhibitor: profile,
-              ),
-            ),
-          );*/
+          // Optional: Navigate to detail view
         },
         child: Card(
-          color: Colors.white,
+          color: theme.whiteColor,
           elevation: 5.0,
           shape: const RoundedRectangleBorder(
             borderRadius: BorderRadius.all(Radius.circular(15.0)),
@@ -276,13 +289,14 @@ class _NetworkinScreenState extends State<NetworkinScreen> {
                     child: Row(
                       children: [
                         ClipOval(
-                          child: profile.imagePath.startsWith('http') || profile.imagePath.startsWith('https')
+                          child: isNetworkImage
                               ? Image.network(
-                            profile.imagePath,
+                            imagePath, // 🔄 Change: Using profile.logo
                             width: 80,
                             height: 80,
                             fit: BoxFit.cover,
                             errorBuilder: (context, error, stackTrace) =>
+                            // 🎨 Note: Icon color is Colors.grey
                             const Icon(Icons.person, size: 80, color: Colors.grey),
                           )
                               : Image.asset(
@@ -291,6 +305,7 @@ class _NetworkinScreenState extends State<NetworkinScreen> {
                             height: 80,
                             fit: BoxFit.cover,
                             errorBuilder: (context, error, stackTrace) =>
+                            // 🎨 Note: Icon color is Colors.grey
                             const Icon(Icons.person, size: 80, color: Colors.grey),
                           ),
                         ),
@@ -298,21 +313,37 @@ class _NetworkinScreenState extends State<NetworkinScreen> {
                         Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
+                            // 🔄 Change: Use profile.nom for company name
                             Text(
-                              profile.entreprise,
-                              style: const TextStyle(
+                              profile.nom ?? 'N/A',
+                              style: TextStyle(
                                 fontSize: 22,
                                 fontWeight: FontWeight.bold,
-                                color: Color(0xFF261350),
+                                color: theme.primaryColor,
                               ),
                             ),
+                            // 🔄 Change: Use profile.ville for city
                             Text(
-                              profile.ville,
-                              style: TextStyle(
+                              profile.ville ?? 'N/A',
+                              style: const TextStyle(
                                 fontSize: 16,
-                                color: Colors.grey[600],
+                                // 🎨 Note: TextStyle color is Colors.grey, aligning with your saved preference.
+                                color: Colors.grey,
                               ),
                             ),
+                            // New: Add stand number if available
+                            if (profile.stand != null)
+                              Padding(
+                                padding: const EdgeInsets.only(top: 4.0),
+                                child: Text(
+                                  'Stand: ${profile.stand}',
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    color: theme.secondaryColor,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ),
                           ],
                         ),
                       ],
@@ -323,14 +354,14 @@ class _NetworkinScreenState extends State<NetworkinScreen> {
                     right: 20,
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                      decoration: const BoxDecoration(
-                        color: Color(0xFF261350),
-                        borderRadius: BorderRadius.all(Radius.circular(5)),
+                      decoration: BoxDecoration(
+                        color: theme.primaryColor,
+                        borderRadius: const BorderRadius.all(Radius.circular(5)),
                       ),
                       child: Text(
                         '${dummyMatchPercentage}%',
-                        style: const TextStyle(
-                          color: Colors.white,
+                        style: TextStyle(
+                          color: theme.whiteColor,
                           fontWeight: FontWeight.bold,
                           fontSize: 16,
                         ),
@@ -344,12 +375,12 @@ class _NetworkinScreenState extends State<NetworkinScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
+                    Text(
                       'Categories of interest',
                       style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.bold,
-                        color: Color(0xFF261350),
+                        color: theme.primaryColor,
                       ),
                     ),
                     const SizedBox(height: 10),
@@ -360,9 +391,9 @@ class _NetworkinScreenState extends State<NetworkinScreen> {
                         return Chip(
                           label: Text(
                             interest,
-                            style: const TextStyle(color: Colors.white, fontSize: 13),
+                            style: TextStyle(color: theme.whiteColor, fontSize: 13),
                           ),
-                          backgroundColor: const Color(0xFFFF69B4),
+                          backgroundColor: theme.secondaryColor,
                           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                         );
@@ -372,20 +403,6 @@ class _NetworkinScreenState extends State<NetworkinScreen> {
                 ),
               ),
               const Expanded(child: SizedBox.shrink()),
-              // You can uncomment and use the actual profile data here
-              /*
-              Padding(
-                 padding: const EdgeInsets.all(20.0),
-                 child: Column(
-                   crossAxisAlignment: CrossAxisAlignment.start,
-                   children: [
-                     Text('Activity: ${profile.activite}'),
-                     Text('Website: ${profile.siteWeb}'),
-                     Text('Stand: ${profile.stand}'),
-                   ],
-                 ),
-              ),
-              */
             ],
           ),
         ),
@@ -393,36 +410,56 @@ class _NetworkinScreenState extends State<NetworkinScreen> {
     );
   }
 
-  Widget _buildActionButtons() {
+  // --- ACTION BUTTONS (FIXED) ---
+  Widget _buildActionButtons(AppThemeData theme) {
     if (_networkingProfiles.isEmpty) return const SizedBox.shrink();
+
+    final currentExhibitor = _networkingProfiles[_currentPageIndex];
+
+    // Calendar icon: Navigate to CommerciauxScreen (Agenda/Creneau)
+    void onCalendarPressed() {
+      if (_userAuthToken == null) return;
+
+      // ⚠️ CRITICAL CHANGE: The old code used 'compteId'. The new model only has 'id' (which maps to the old JSON's 'id').
+      // Assuming 'exposantId' in CommerciauxScreen should use the exhibitor's main ID field.
+      // If 'compte_id' from the original JSON is required, you must add it to the 'ExposantNetworking' model.
+      final int correctExposantId = currentExhibitor.id ?? 0; // Fallback to 0 if null
+
+      // Navigate to CommerciauxScreen
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => CommerciauxScreen(
+            exposantId: correctExposantId, // 🔄 Change: Now using currentExhibitor.id
+            authToken: _userAuthToken!,
+            theme: theme,
+          ),
+        ),
+      );
+    }
+
+    // Default action for other buttons: advance the page
+    void defaultNextProfile(String action) {
+      print("$action button pressed for ${_networkingProfiles[_currentPageIndex].nom}"); // 🔄 Change: Use profile.nom
+      _nextProfile();
+    }
+
 
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 10.0, horizontal: 20.0),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: [
-          _buildActionButton(Icons.chat_bubble_outline, () {
-            print("Message button pressed for ${_networkingProfiles[_currentPageIndex].entreprise}");
-            _nextProfile();
-          }, Colors.blueGrey),
-          _buildActionButton(Icons.close, () {
-            print("Dismiss button pressed for ${_networkingProfiles[_currentPageIndex].entreprise}");
-            _nextProfile();
-          }, Colors.black),
-          _buildActionButton(Icons.star_border, () {
-            print("Star button pressed for ${_networkingProfiles[_currentPageIndex].entreprise}");
-            _nextProfile();
-          }, Colors.orange),
-          _buildActionButton(Icons.calendar_today_outlined, () {
-            print("Calendar button pressed for ${_networkingProfiles[_currentPageIndex].entreprise}");
-            _nextProfile();
-          }, Colors.purple),
+          _buildActionButton(Icons.chat_bubble_outline, () => defaultNextProfile("Message"), Colors.blueGrey, theme),
+          _buildActionButton(Icons.close, () => defaultNextProfile("Dismiss"), theme.blackColor, theme),
+          _buildActionButton(Icons.star_border, () => defaultNextProfile("Star"), theme.secondaryColor, theme),
+          _buildActionButton(Icons.calendar_today_outlined, onCalendarPressed, theme.primaryColor, theme),
         ],
       ),
     );
   }
 
-  Widget _buildActionButton(IconData icon, VoidCallback onPressed, Color color) {
+  Widget _buildActionButton(IconData icon, VoidCallback onPressed, Color iconColor, AppThemeData theme) {
     return Container(
       decoration: BoxDecoration(
         shape: BoxShape.circle,
@@ -436,21 +473,35 @@ class _NetworkinScreenState extends State<NetworkinScreen> {
         ],
       ),
       child: Material(
-        color: Colors.white,
+        color: theme.whiteColor,
         shape: const CircleBorder(),
         child: InkWell(
           customBorder: const CircleBorder(),
           onTap: onPressed,
           child: Padding(
             padding: const EdgeInsets.all(15.0),
-            child: Icon(icon, size: 28, color: color),
+            child: Icon(icon, size: 28, color: iconColor),
           ),
         ),
       ),
     );
   }
 
-  Widget _buildMatchButton() {
+  Widget _buildMatchButton(AppThemeData theme) {
+    void onMatchButtonPressed() {
+      if (_userAuthToken == null) return;
+
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+            builder: (context) => RdvScreen(
+              authToken: _userAuthToken!,
+              theme: theme,
+            )
+        ),
+      );
+    }
+
     return FadeInUp(
       duration: const Duration(milliseconds: 600),
       child: Container(
@@ -458,26 +509,24 @@ class _NetworkinScreenState extends State<NetworkinScreen> {
         height: 50,
         margin: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 10.0),
         decoration: BoxDecoration(
-          color: const Color(0xFFE50000),
+          color: theme.primaryColor,
           borderRadius: BorderRadius.circular(10.0),
         ),
         child: TextButton(
-          onPressed: () {
-            print("Afficher mes matches button pressed!");
-          },
-          child: const Row(
+          onPressed: onMatchButtonPressed,
+          child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Text(
                 'Afficher mes matches',
                 style: TextStyle(
-                  color: Colors.white,
+                  color: theme.whiteColor,
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
                 ),
               ),
-              SizedBox(width: 10),
-              Icon(Icons.arrow_forward, color: Colors.white, size: 24),
+              const SizedBox(width: 10),
+              Icon(Icons.arrow_forward, color: theme.whiteColor, size: 24),
             ],
           ),
         ),

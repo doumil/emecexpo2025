@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:animate_do/animate_do.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
@@ -8,6 +9,7 @@ import 'package:fluttertoast/fluttertoast.dart';
 import 'package:http/http.dart' as http;// ⭐ Import the new service
 import 'api_services/speaker_api_service.dart';
 import 'details/DetailSpeakeres.dart';
+import 'main.dart';
 import 'model/speakers_model.dart'; // ⭐ Import the model with the default URL
 
 class SpeakersScreen extends StatefulWidget {
@@ -19,7 +21,7 @@ class SpeakersScreen extends StatefulWidget {
 
 class _SpeakersScreenState extends State<SpeakersScreen> {
   final SpeakerApiService _apiService = SpeakerApiService(); // ⭐ Initialize service
-
+  late SharedPreferences prefs;
   List<Speakers> _allSpeakers = [];
   List<Speakers> _recommendedSpeakers = [];
   List<Speakers> _otherSpeakers = [];
@@ -182,9 +184,11 @@ class _SpeakersScreenState extends State<SpeakersScreen> {
     }
     List<String> sortedKeys = groupedOtherSpeakers.keys.toList()..sort();
 
-    return WillPopScope(
-      onWillPop: _onWillPop,
-      child: GestureDetector(
+    return
+      //WillPopScope(
+      //onWillPop: _onWillPop,
+      //child: 
+  GestureDetector(
         onTap: () => FocusScope.of(context).unfocus(),
         child: Scaffold(
           backgroundColor: Colors.white,
@@ -194,6 +198,15 @@ class _SpeakersScreenState extends State<SpeakersScreen> {
             title: const Text(
               'Speakers',
               style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+            ),
+            leading: IconButton(
+              icon: Icon(Icons.arrow_back_ios, color: Colors.white), // Assuming a light icon on a colored AppBar
+              onPressed: () async{
+                prefs = await SharedPreferences.getInstance();
+                prefs.setString("Data", "99");
+                Navigator.pushReplacement(
+                    context, MaterialPageRoute(builder: (context) => WelcomPage()));
+              },
             ),
             centerTitle: true,
             actions: [
@@ -322,7 +335,7 @@ class _SpeakersScreenState extends State<SpeakersScreen> {
             ),
           ),
         ),
-      ),
+      //),
     );
   }
 

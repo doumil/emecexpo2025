@@ -8,7 +8,8 @@ import 'package:intl/intl.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:provider/provider.dart';
 import 'package:emecexpo/providers/theme_provider.dart';
-
+import 'package:shared_preferences/shared_preferences.dart';
+import 'main.dart';
 import 'model/app_theme_data.dart';
 
 // --- Placeholder for DataBaseHelperNotif (REPLACE WITH YOUR ACTUAL DB HELPER) ---
@@ -89,9 +90,10 @@ class DataBaseHelperNotif {
     ];
   }
 }
-
+late SharedPreferences prefs;
 // --- Placeholder for DetailCongressScreen (REPLACE WITH YOUR ACTUAL DETAIL SCREEN) ---
 class DetailCongressScreen extends StatelessWidget {
+
   final bool check;
   final CongressDClass? agendaItem; // Now takes an optional agenda item
 
@@ -104,6 +106,15 @@ class DetailCongressScreen extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Congress Event Details'),
+        leading: IconButton(
+          icon: Icon(Icons.arrow_back_ios, color: Colors.white), // Assuming a light icon on a colored AppBar
+          onPressed: () async{
+            prefs = await SharedPreferences.getInstance();
+            prefs.setString("Data", "99");
+            Navigator.pushReplacement(
+                context, MaterialPageRoute(builder: (context) => WelcomPage()));
+          },
+        ),
         backgroundColor: theme.primaryColor,
         foregroundColor: theme.whiteColor,
       ),
@@ -151,6 +162,7 @@ class MyAgendaScreen extends StatefulWidget {
 }
 
 class _MyAgendaScreenState extends State<MyAgendaScreen> with SingleTickerProviderStateMixin {
+  late SharedPreferences prefs;
   List<CongressDClass> allAgendaItems = [];
   List<CongressDClass> dailyAgendaItems = [];
   List<CongressDClass> filteredAgendaItems = [];
@@ -301,13 +313,24 @@ class _MyAgendaScreenState extends State<MyAgendaScreen> with SingleTickerProvid
     final double height = MediaQuery.of(context).size.height;
     final double width = MediaQuery.of(context).size.width;
 
-    return WillPopScope(
-      onWillPop: _onWillPop,
-      child: Scaffold(
+    return
+      //WillPopScope(
+      //onWillPop: _onWillPop,
+      //child:
+    Scaffold(
         // ✅ Use a theme color for the background
         backgroundColor: theme.whiteColor,
         appBar: AppBar(
           title: const Text('My Agenda'),
+          leading: IconButton(
+            icon: Icon(Icons.arrow_back_ios, color: Colors.white), // Assuming a light icon on a colored AppBar
+            onPressed: () async{
+              prefs = await SharedPreferences.getInstance();
+              prefs.setString("Data", "99");
+              Navigator.pushReplacement(
+                  context, MaterialPageRoute(builder: (context) => WelcomPage()));
+            },
+          ),
           // ✅ Use a theme color for the AppBar background
           backgroundColor: theme.primaryColor,
           // ✅ Use a theme color for the AppBar foreground
@@ -515,7 +538,7 @@ class _MyAgendaScreenState extends State<MyAgendaScreen> with SingleTickerProvid
           backgroundColor: theme.primaryColor,
           child: Icon(Icons.add, color: theme.whiteColor),
         ),
-      ),
+      //),
     );
   }
 

@@ -1,5 +1,5 @@
 // lib/exhibitors_screen.dart
-
+import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 import 'package:animate_do/animate_do.dart';
 import 'package:emecexpo/details/ExhibitorsMenu.dart';
@@ -9,12 +9,18 @@ import 'package:flutter/services.dart';
 import 'package:flutter_spinkit/flutter_spinkit.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:provider/provider.dart'; // 💡 Import Provider
-import 'package:emecexpo/providers/theme_provider.dart'; // 💡 Import ThemeProvider
+import 'package:provider/provider.dart';
+import 'package:emecexpo/providers/theme_provider.dart';
+
 import 'package:emecexpo/model/exhibitors_model.dart';
 import 'package:emecexpo/api_services/exhibitor_api_service.dart';
 import 'package:emecexpo/details/DetailExhibitors.dart';
 
+// 💡 NEW IMPORTS for Sponsor functionality
+import 'package:emecexpo/model/sponsor_model.dart';
+import 'package:emecexpo/api_services/sponsor_api_service.dart';
+
+import 'main.dart';
 import 'model/app_theme_data.dart';
 
 class ExhibitorsScreen extends StatefulWidget {
@@ -25,16 +31,21 @@ class ExhibitorsScreen extends StatefulWidget {
 }
 
 class _ExhibitorsScreenState extends State<ExhibitorsScreen> {
+  late SharedPreferences prefs;
   List<ExhibitorsClass> _allApiExhibitors = [];
-  List<ExhibitorsClass> _recommendedExhibitors = [];
+  // 💡 List is now SponsorClass
+  List<SponsorClass> _sponsors = [];
   List<ExhibitorsClass> _otherExhibitors = [];
   List<ExhibitorsClass> _filteredOtherExhibitors = [];
 
   bool isLoading = true;
+  bool _sponsorsLoaded = false;
   TextEditingController _searchController = TextEditingController();
   bool _isStarFilterActive = false;
 
   final ExhibitorApiService _exhibitorApiService = ExhibitorApiService();
+  // 💡 NEW Service instance
+  final SponsorApiService _sponsorApiService = SponsorApiService();
 
   @override
   void initState() {
@@ -55,30 +66,19 @@ class _ExhibitorsScreenState extends State<ExhibitorsScreen> {
     });
 
     try {
-      _recommendedExhibitors = [
-        ExhibitorsClass(
-          0, 'TECHNOPARK', 'ED240', 'Incubateur technologique',
-          'Casablanca, Morocco', 'Full description for Technopark',
-          'www.technopark.ma', 'assets/partners/1.png', false, true, isRecommended: true,
-        ),
-        ExhibitorsClass(
-          1, 'AMMC', 'EF300', 'Autorité des marchés financiers',
-          'Rabat, Morocco', 'Full description for AMMC',
-          'www.ammc.ma', 'assets/partners/2.png', false, false, isRecommended: true,
-        ),
-        ExhibitorsClass(
-          2, 'MEDI 1 RADIO', 'RZ901', 'Radio d\'information continue',
-          'Tanger, Morocco', 'Full description for Medi 1 Radio',
-          'www.medi1radio.com', 'assets/partners/3.png', false, false, isRecommended: true,
-        ),
-        ExhibitorsClass(
-          3, 'buzz event', 'FG450', 'Solutions IT innovantes',
-          'casablanca, Morocco', 'Full description for ABC Solutions',
-          'www.abcsolutions.ma', 'assets/partners/4.png', false, false, isRecommended: true,
-        ),
-      ];
-      print('Static Sponsors Loaded: ${_recommendedExhibitors.length} items');
+      // 💡 LOAD SPONSORS FROM API
+      try {
+        _sponsors = await _sponsorApiService.getSponsors();
+        _sponsorsLoaded = true;
+        print('API Sponsors Fetched: ${_sponsors.length} items');
+      } catch (e) {
+        // Log sponsor error but allow exhibitor loading to continue
+        print("Error loading sponsors: $e");
+        _sponsorsLoaded = false;
+        // Keep _sponsors empty so the error message is shown in the UI
+      }
 
+      // LOAD MAIN EXHIBITORS FROM API (unchanged logic)
       _allApiExhibitors = await _exhibitorApiService.getExhibitors();
       print('API Exhibitors Fetched: ${_allApiExhibitors.length} items');
 
@@ -90,8 +90,8 @@ class _ExhibitorsScreenState extends State<ExhibitorsScreen> {
       _filteredOtherExhibitors = _otherExhibitors;
       print('Filtered Main Exhibitors (initially): ${_filteredOtherExhibitors.length} items');
     } catch (e) {
-      print("Error loading data: $e");
-      Fluttertoast.showToast(msg: "Failed to load data: ${e.toString()}", toastLength: Toast.LENGTH_LONG);
+      print("Error loading ALL data: $e");
+      Fluttertoast.showToast(msg: "Failed to load all data: ${e.toString()}", toastLength: Toast.LENGTH_LONG);
     } finally {
       setState(() {
         isLoading = false;
@@ -101,6 +101,7 @@ class _ExhibitorsScreenState extends State<ExhibitorsScreen> {
   }
 
   void _filterExhibitors() {
+    // ... (Filter logic remains unchanged, only applies to _otherExhibitors) ...
     String query = _searchController.text.toLowerCase();
     print('Search query: "$query"');
 
@@ -140,7 +141,7 @@ class _ExhibitorsScreenState extends State<ExhibitorsScreen> {
     });
   }
 
-  Future<bool> _onWillPop() async {
+  /*Future<bool> _onWillPop() async {
     return (await showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -158,11 +159,41 @@ class _ExhibitorsScreenState extends State<ExhibitorsScreen> {
         ],
       ),
     )) ?? false;
+  }*/
+
+  // 💡 NEW WIDGET: Error message for Sponsors
+  Widget _buildSponsorErrorState(AppThemeData theme) {
+    return Container(
+      width: double.infinity,
+      height: 100, // Fixed height for visual consistency
+      margin: EdgeInsets.symmetric(horizontal: MediaQuery.of(context).size.width * 0.04),
+      decoration: BoxDecoration(
+        color: Colors.grey.shade100,
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.favorite_outline, // Default icon
+              color: Colors.grey, // Default icon color
+              size: 30,
+            ),
+            const SizedBox(height: 5),
+            const Text(
+              "No sponsors available or failed to load.", // Default message
+              style: TextStyle(color: Colors.grey, fontSize: 14),
+            ),
+          ],
+        ),
+      ),
+    );
   }
+
 
   @override
   Widget build(BuildContext context) {
-    // 💡 Access the theme provider
     final themeProvider = Provider.of<ThemeProvider>(context);
     final theme = themeProvider.currentTheme;
 
@@ -179,21 +210,27 @@ class _ExhibitorsScreenState extends State<ExhibitorsScreen> {
     }
     List<String> sortedKeys = groupedOtherExhibitors.keys.toList()..sort();
 
-    return WillPopScope(
-      onWillPop: _onWillPop,
+    return FadeInDown(
+      //onWillPop: _onWillPop,
       child: GestureDetector(
         onTap: () => FocusScope.of(context).unfocus(),
         child: Scaffold(
-          // ✅ Use whiteColor from theme for scaffold background
           backgroundColor: theme.whiteColor,
           appBar: AppBar(
-            // ✅ Use primaryColor from theme
             backgroundColor: theme.primaryColor,
             elevation: 0,
+            leading: IconButton(
+              icon: Icon(Icons.arrow_back_ios, color: theme.whiteColor), // Assuming a light icon on a colored AppBar
+              onPressed: () async{
+                prefs = await SharedPreferences.getInstance();
+                prefs.setString("Data", "99");
+                Navigator.pushReplacement(
+                    context, MaterialPageRoute(builder: (context) => WelcomPage()));
+              },
+            ),
             title: Text(
               'Exhibitors',
               style: TextStyle(
-                // ✅ Use whiteColor from theme
                 color: theme.whiteColor,
                 fontWeight: FontWeight.bold,
               ),
@@ -203,7 +240,6 @@ class _ExhibitorsScreenState extends State<ExhibitorsScreen> {
               IconButton(
                 icon: Icon(
                   Icons.filter_list,
-                  // ✅ Use whiteColor from theme
                   color: theme.whiteColor,
                 ),
                 onPressed: () {
@@ -213,7 +249,6 @@ class _ExhibitorsScreenState extends State<ExhibitorsScreen> {
               IconButton(
                 icon: Icon(
                   _isStarFilterActive ? Icons.star : Icons.star_border,
-                  // ✅ Use secondaryColor for active star, white for inactive
                   color: _isStarFilterActive ? theme.secondaryColor : theme.whiteColor,
                 ),
                 onPressed: _toggleStarFilter,
@@ -225,7 +260,6 @@ class _ExhibitorsScreenState extends State<ExhibitorsScreen> {
                 padding: EdgeInsets.symmetric(horizontal: width * 0.04, vertical: height * 0.01),
                 child: Container(
                   decoration: BoxDecoration(
-                    // ✅ Use whiteColor with opacity
                     color: theme.whiteColor.withOpacity(0.2),
                     borderRadius: BorderRadius.circular(10.0),
                   ),
@@ -233,13 +267,11 @@ class _ExhibitorsScreenState extends State<ExhibitorsScreen> {
                     controller: _searchController,
                     decoration: InputDecoration(
                       hintText: 'Recherche',
-                      // ✅ Use whiteColor with opacity
                       hintStyle: TextStyle(color: theme.whiteColor.withOpacity(0.7)),
                       prefixIcon: Icon(Icons.search, color: theme.whiteColor),
                       border: InputBorder.none,
                       contentPadding: EdgeInsets.symmetric(vertical: height * 0.015),
                     ),
-                    // ✅ Use whiteColor from theme
                     style: TextStyle(fontSize: height * 0.02, color: theme.whiteColor),
                   ),
                 ),
@@ -249,7 +281,6 @@ class _ExhibitorsScreenState extends State<ExhibitorsScreen> {
           body: isLoading
               ? Center(
             child: SpinKitThreeBounce(
-              // ✅ Use secondaryColor from theme
               color: theme.secondaryColor,
               size: 30.0,
             ),
@@ -268,24 +299,22 @@ class _ExhibitorsScreenState extends State<ExhibitorsScreen> {
                       style: TextStyle(
                         fontSize: height * 0.02,
                         fontWeight: FontWeight.bold,
-                        // ✅ Use blackColor from theme
                         color: theme.blackColor,
                       ),
                     ),
                   ),
                   SizedBox(
                     height: height * 0.22,
-                    child: _recommendedExhibitors.isEmpty
-                        ? const Center(
-                      child: Text("No sponsors found.", style: TextStyle(color: Colors.grey)),
-                    )
+                    child: _sponsors.isEmpty
+                    // 💡 Show error state if no sponsors were loaded/found
+                        ? _buildSponsorErrorState(theme)
                         : ListView.builder(
                       scrollDirection: Axis.horizontal,
                       padding: EdgeInsets.symmetric(horizontal: width * 0.04),
-                      itemCount: _recommendedExhibitors.length,
+                      itemCount: _sponsors.length,
                       itemBuilder: (context, index) {
-                        // 💡 Pass the theme to the card builder
-                        return _buildRecommendedExhibitorCard(_recommendedExhibitors[index], width, height, theme);
+                        // 💡 Use the new SponsorClass object
+                        return _buildRecommendedExhibitorCard(_sponsors[index], width, height, theme);
                       },
                     ),
                   ),
@@ -299,7 +328,6 @@ class _ExhibitorsScreenState extends State<ExhibitorsScreen> {
                       style: TextStyle(
                         fontSize: height * 0.02,
                         fontWeight: FontWeight.bold,
-                        // ✅ Use blackColor from theme
                         color: theme.blackColor,
                       ),
                     ),
@@ -312,7 +340,6 @@ class _ExhibitorsScreenState extends State<ExhibitorsScreen> {
                           _searchController.text.isNotEmpty
                               ? "No exhibitors found for your search."
                               : (_isStarFilterActive ? "No favorited exhibitors to display." : "No exhibitors to display."),
-                          // ✅ Use grey color for a neutral tone
                           style: const TextStyle(color: Colors.grey, fontSize: 16),
                           textAlign: TextAlign.center,
                         ),
@@ -330,7 +357,6 @@ class _ExhibitorsScreenState extends State<ExhibitorsScreen> {
                               style: TextStyle(
                                 fontSize: height * 0.02,
                                 fontWeight: FontWeight.bold,
-                                // ✅ Use blackColor from theme
                                 color: theme.blackColor,
                               ),
                             ),
@@ -341,7 +367,6 @@ class _ExhibitorsScreenState extends State<ExhibitorsScreen> {
                             padding: EdgeInsets.symmetric(horizontal: width * 0.04),
                             itemCount: groupedOtherExhibitors[letter]!.length,
                             itemBuilder: (context, index) {
-                              // 💡 Pass the theme to the list item builder
                               return _buildExhibitorListItem(groupedOtherExhibitors[letter]![index], width, height, theme);
                             },
                           ),
@@ -357,33 +382,36 @@ class _ExhibitorsScreenState extends State<ExhibitorsScreen> {
     );
   }
 
-  // 💡 Updated method signature to accept an AppThemeData object
-  Widget _buildRecommendedExhibitorCard(ExhibitorsClass exhibitor, double width, double height, AppThemeData theme) {
+  // 💡 Card widget now accepts a dynamic object (ExhibitorsClass or SponsorClass)
+  Widget _buildRecommendedExhibitorCard(dynamic item, double width, double height, AppThemeData theme) {
+    // We treat the item as either ExhibitorsClass or SponsorClass since they share the same properties
+
+    // Check for the appropriate type of image loading logic here if needed
+    // For now, assume item.image points to an asset path as before
+
     return Container(
       width: width * 0.45,
       margin: EdgeInsets.only(right: width * 0.03),
       decoration: BoxDecoration(
-        // ✅ Use whiteColor from theme for card background
         color: theme.whiteColor,
         borderRadius: BorderRadius.circular(10.0),
         boxShadow: [
           BoxShadow(
-            // ✅ Use grey with opacity for shadow
             color: Colors.grey.withOpacity(0.2),
             spreadRadius: 1,
             blurRadius: 3,
             offset: const Offset(0, 2),
           ),
         ],
-        // ✅ Use a gold color for the border
         border: Border.all(color: Colors.yellow.shade700, width: 2),
       ),
       child: GestureDetector(
         onTap: () {
+          // Note: DetailExhibitorsScreen needs to handle both Exhibitors and Sponsors if necessary
           Navigator.push(
             context,
             MaterialPageRoute(
-              builder: (context) => DetailExhibitorsScreen(exhibitorId: exhibitor.id),
+              builder: (context) => DetailExhibitorsScreen(exhibitorId: item.id),
             ),
           );
         },
@@ -397,7 +425,7 @@ class _ExhibitorsScreenState extends State<ExhibitorsScreen> {
                 alignment: Alignment.topRight,
                 children: [
                   Image.asset(
-                    exhibitor.image,
+                    item.image,
                     width: width * 0.25,
                     height: width * 0.15,
                     fit: BoxFit.contain,
@@ -415,14 +443,13 @@ class _ExhibitorsScreenState extends State<ExhibitorsScreen> {
                     right: 0,
                     child: IconButton(
                       icon: Icon(
-                        exhibitor.star ? Icons.star : Icons.star_border,
-                        // ✅ Use secondaryColor for active star, grey for inactive
-                        color: exhibitor.star ? theme.secondaryColor : Colors.grey,
+                        item.star ? Icons.star : Icons.star_border,
+                        color: item.star ? theme.secondaryColor : Colors.grey,
                         size: width * 0.05,
                       ),
                       onPressed: () {
                         setState(() {
-                          exhibitor.star = !exhibitor.star;
+                          item.star = !item.star;
                         });
                       },
                     ),
@@ -431,12 +458,11 @@ class _ExhibitorsScreenState extends State<ExhibitorsScreen> {
               ),
               SizedBox(height: height * 0.01),
               Text(
-                exhibitor.title,
+                item.title,
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: height * 0.018,
                   fontWeight: FontWeight.bold,
-                  // ✅ Use blackColor from theme
                   color: theme.blackColor,
                 ),
                 maxLines: 2,
@@ -444,11 +470,10 @@ class _ExhibitorsScreenState extends State<ExhibitorsScreen> {
               ),
               const SizedBox(height: 2.0),
               Text(
-                exhibitor.adress.isNotEmpty ? exhibitor.adress : exhibitor.shortDiscriptions,
+                item.adress.isNotEmpty ? item.adress : item.shortDiscriptions,
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: height * 0.014,
-                  // ✅ Use blackColor with opacity
                   color: theme.blackColor.withOpacity(0.7),
                 ),
                 maxLines: 1,
@@ -461,7 +486,7 @@ class _ExhibitorsScreenState extends State<ExhibitorsScreen> {
     );
   }
 
-  // 💡 Updated method signature to accept an AppThemeData object
+  // 💡 List Item widget remains focused on ExhibitorsClass
   Widget _buildExhibitorListItem(ExhibitorsClass exhibitor, double width, double height, AppThemeData theme) {
     return InkWell(
       onTap: () {
@@ -477,7 +502,6 @@ class _ExhibitorsScreenState extends State<ExhibitorsScreen> {
         decoration: BoxDecoration(
           border: Border(
             bottom: BorderSide(
-              // ✅ Use blackColor with opacity for the divider
               color: theme.blackColor.withOpacity(0.2),
               width: 1.0,
             ),
@@ -504,7 +528,6 @@ class _ExhibitorsScreenState extends State<ExhibitorsScreen> {
                     style: TextStyle(
                       fontSize: height * 0.02,
                       fontWeight: FontWeight.bold,
-                      // ✅ Use blackColor from theme
                       color: theme.blackColor,
                     ),
                     maxLines: 1,
@@ -515,7 +538,6 @@ class _ExhibitorsScreenState extends State<ExhibitorsScreen> {
                     exhibitor.adress.isNotEmpty ? exhibitor.adress : exhibitor.shortDiscriptions,
                     style: TextStyle(
                       fontSize: height * 0.016,
-                      // ✅ Use blackColor with opacity
                       color: theme.blackColor.withOpacity(0.7),
                     ),
                     maxLines: 1,
@@ -525,7 +547,6 @@ class _ExhibitorsScreenState extends State<ExhibitorsScreen> {
                   Text(
                     "Stand :${exhibitor.stand}",
                     style: TextStyle(
-                      // ✅ Use a darker grey or black with low opacity
                       color: Colors.black26,
                       height: 1.5,
                       fontSize: height * 0.014,
@@ -537,7 +558,6 @@ class _ExhibitorsScreenState extends State<ExhibitorsScreen> {
             IconButton(
               icon: Icon(
                 exhibitor.star ? Icons.star : Icons.star_border,
-                // ✅ Use secondaryColor for active star, grey for inactive
                 color: exhibitor.star ? theme.secondaryColor : Colors.grey,
                 size: width * 0.06,
               ),

@@ -57,9 +57,11 @@ class _ExhibitorDScreenState extends State<ExhibitorDScreen> {
     // 💡 Access the theme
     final theme = Provider.of<ThemeProvider>(context).currentTheme;
 
-    return WillPopScope(
-      onWillPop: _onWillPop,
-      child: Scaffold(
+    return
+      //WillPopScope(
+      //onWillPop: _onWillPop,
+      //child:
+    Scaffold(
         appBar: AppBar(
           title: Text("EMEC EXPO"),
           backgroundColor: theme.primaryColor, // 💡 Dynamic color
@@ -118,7 +120,7 @@ class _ExhibitorDScreenState extends State<ExhibitorDScreen> {
                 ],
               ),
             )),
-      ),
+     // ),
     );
   }
 }

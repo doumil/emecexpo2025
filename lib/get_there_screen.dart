@@ -40,7 +40,7 @@ class _GetThereScreenState extends State<GetThereScreen> {
       ..loadRequest(Uri.parse('https://maps.google.com/maps?q=location&t=k&z=13&ie=UTF8&iwloc=&output=embed'));
   }
 
-  Future<bool> _onWillPop() async {
+  /*Future<bool> _onWillPop() async {
     return (await showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -58,7 +58,7 @@ class _GetThereScreenState extends State<GetThereScreen> {
         ],
       ),
     )) ?? false;
-  }
+  }*/
 
   @override
   Widget build(BuildContext context) {
@@ -66,9 +66,10 @@ class _GetThereScreenState extends State<GetThereScreen> {
     final themeProvider = Provider.of<ThemeProvider>(context);
     final theme = themeProvider.currentTheme;
 
-    return WillPopScope(
-      onWillPop: _onWillPop,
-      child: Scaffold(
+    return
+      //WillPopScope(
+      //onWillPop: _onWillPop,
+       Scaffold(
         appBar: AppBar(
           title: const Text('How to get there'),
           centerTitle: true,
@@ -90,7 +91,7 @@ class _GetThereScreenState extends State<GetThereScreen> {
               ),
           ],
         ),
-      ),
+     // ),
     );
   }
 }

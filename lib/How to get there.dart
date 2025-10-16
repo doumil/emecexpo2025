@@ -5,6 +5,9 @@ import 'package:webview_flutter/webview_flutter.dart';
 import 'package:flutter_spinkit/flutter_spinkit.dart';
 import 'package:provider/provider.dart';
 import 'package:emecexpo/providers/theme_provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
+import 'main.dart';
 
 class GetThereScreen extends StatefulWidget {
   const GetThereScreen({Key? key}) : super(key: key);
@@ -14,6 +17,7 @@ class GetThereScreen extends StatefulWidget {
 }
 
 class _GetThereScreenState extends State<GetThereScreen> {
+  late SharedPreferences prefs;
   late final WebViewController _controller;
   bool isLoading = true;
 
@@ -78,11 +82,22 @@ class _GetThereScreenState extends State<GetThereScreen> {
     final themeProvider = Provider.of<ThemeProvider>(context);
     final theme = themeProvider.currentTheme;
 
-    return WillPopScope(
-      onWillPop: _onWillPop,
-      child: Scaffold(
+    return
+      //WillPopScope(
+      //onWillPop: _onWillPop,
+      //child:
+    Scaffold(
         appBar: AppBar(
           title: const Text('How to get there'),
+          leading: IconButton(
+            icon: Icon(Icons.arrow_back_ios, color: Colors.white), // Assuming a light icon on a colored AppBar
+            onPressed: () async{
+              prefs = await SharedPreferences.getInstance();
+              prefs.setString("Data", "99");
+              Navigator.pushReplacement(
+                  context, MaterialPageRoute(builder: (context) => WelcomPage()));
+            },
+          ),
           centerTitle: true,
           // Use primary color from the theme
           backgroundColor: theme.primaryColor,
@@ -107,7 +122,7 @@ class _GetThereScreenState extends State<GetThereScreen> {
               ),
           ],
         ),
-      ),
+    //  ),
     );
   }
 }

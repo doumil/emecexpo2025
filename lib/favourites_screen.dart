@@ -4,7 +4,10 @@ import 'package:flutter_spinkit/flutter_spinkit.dart';
 import 'package:provider/provider.dart'; // 💡 Import Provider
 import 'package:emecexpo/providers/theme_provider.dart'; // 💡 Import ThemeProvider
 import '../model/favorite_item_model.dart';
+import 'main.dart';
 import 'model/app_theme_data.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
 
 class FavouritesScreen extends StatefulWidget {
   const FavouritesScreen({super.key});
@@ -14,6 +17,7 @@ class FavouritesScreen extends StatefulWidget {
 }
 
 class _FavouritesScreenState extends State<FavouritesScreen> {
+  late SharedPreferences prefs;
   final TextEditingController _searchController = TextEditingController();
   List<FavoriteItem> _allFavoriteItems = [];
   List<FavoriteItem> _filteredFavoriteItems = [];
@@ -113,6 +117,15 @@ class _FavouritesScreenState extends State<FavouritesScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Favourites'),
+        leading: IconButton(
+          icon: Icon(Icons.arrow_back_ios, color: Colors.white), // Assuming a light icon on a colored AppBar
+          onPressed: () async{
+            prefs = await SharedPreferences.getInstance();
+            prefs.setString("Data", "99");
+            Navigator.pushReplacement(
+                context, MaterialPageRoute(builder: (context) => WelcomPage()));
+          },
+        ),
         // ✅ Apply primaryColor from the theme
         backgroundColor: theme.primaryColor,
         // ✅ Apply whiteColor for the text and icons

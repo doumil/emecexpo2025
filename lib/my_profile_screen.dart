@@ -1,5 +1,5 @@
 // lib/my_profile_screen.dart
-
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart'; // 💡 Import Provider
 import 'package:emecexpo/providers/theme_provider.dart'; // 💡 Import your ThemeProvider
@@ -7,6 +7,7 @@ import 'package:emecexpo/model/user_model.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:emecexpo/login_screen.dart';
 
+import 'main.dart';
 import 'model/app_theme_data.dart';
 
 class MyProfileScreen extends StatefulWidget {
@@ -19,6 +20,7 @@ class MyProfileScreen extends StatefulWidget {
 }
 
 class _MyProfileScreenState extends State<MyProfileScreen> {
+  late SharedPreferences prefs;
   late User _currentUser;
 
   @override
@@ -68,6 +70,15 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
       backgroundColor: theme.whiteColor,
       appBar: AppBar(
         title: const Text('My Profile'),
+        leading: IconButton(
+          icon: Icon(Icons.arrow_back_ios, color: theme.whiteColor), // Assuming a light icon on a colored AppBar
+          onPressed: () async{
+            prefs = await SharedPreferences.getInstance();
+            prefs.setString("Data", "99");
+            Navigator.pushReplacement(
+                context, MaterialPageRoute(builder: (context) => WelcomPage()));
+          },
+        ),
         // ✅ Use theme colors for the AppBar.
         backgroundColor: theme.primaryColor,
         foregroundColor: theme.whiteColor,

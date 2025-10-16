@@ -51,9 +51,11 @@ class _InformationScreenState extends State<InformationScreen> {
     double height = MediaQuery.of(context).size.height;
     double width = MediaQuery.of(context).size.width;
 
-    return WillPopScope(
-      onWillPop: _onWillPop,
-      child: Scaffold(
+    return
+      //WillPopScope(
+      //onWillPop: _onWillPop,
+      //child:
+    Scaffold(
         // ✅ Use whiteColor from theme for scaffold background
         backgroundColor: theme.whiteColor,
         extendBodyBehindAppBar: true,
@@ -212,7 +214,7 @@ class _InformationScreenState extends State<InformationScreen> {
             ),
           ),
         ),
-      ),
+    //  ),
     );
   }
 

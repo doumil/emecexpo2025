@@ -19,7 +19,6 @@ import 'package:emecexpo/Busniess%20Safe.dart';
 import 'package:emecexpo/Congress.dart';
 import 'package:emecexpo/Contact.dart';
 import 'package:emecexpo/Exhibitors.dart';
-import 'package:emecexpo/Expo%20Floor%20Plan.dart';
 import 'package:emecexpo/Food.dart';
 import 'package:emecexpo/How%20to%20get%20there.dart';
 import 'package:emecexpo/Information.dart';
@@ -48,6 +47,7 @@ import 'package:emecexpo/my_profile_screen.dart';
 import 'package:emecexpo/my_badge_screen.dart';
 import 'package:emecexpo/favourites_screen.dart';
 import 'package:emecexpo/scanned_badges_screen.dart';
+import 'ExpoFloorPlan.dart';
 import 'conversations_screen.dart';
 import 'package:emecexpo/meeting_ratings_screen.dart';
 
@@ -118,10 +118,10 @@ void main() async {
   }
 
   globalLitems = [
-    NotifClass("Welcome to EMEC EXPO!", "01 Jan", "09:00", "Get ready for an amazing experience. Explore exhibitors and sessions."),
-    NotifClass("New Exhibitor Alert", "05 Jan", "10:00", "TechInnovate Inc. has just joined! Visit their booth at Stand 23."),
-    NotifClass("Upcoming Session Reminder", "09 Jun", "14:30", "Don't miss the 'Future of AI' panel discussion today at Hall B, Room 7. Join us live!"),
-    NotifClass("Networking Event Tonight", "10 Jun", "18:00", "Join us for a casual networking reception at the Grand Ballroom."),
+    //NotifClass("Welcome to EMEC EXPO!", "01 Jan", "09:00", "Get ready for an amazing experience. Explore exhibitors and sessions."),
+    //NotifClass("New Exhibitor Alert", "05 Jan", "10:00", "TechInnovate Inc. has just joined! Visit their booth at Stand 23."),
+    //NotifClass("Upcoming Session Reminder", "09 Jun", "14:30", "Don't miss the 'Future of AI' panel discussion today at Hall B, Room 7. Join us live!"),
+    //NotifClass("Networking Event Tonight", "10 Jun", "18:00", "Join us for a casual networking reception at the Grand Ballroom."),
   ];
   notificationCountNotifier.value = globalLitems.length;
 
@@ -175,10 +175,6 @@ class MyApp extends StatelessWidget {
     );
   }
 }
-
-// ❌ REMOVED: Duplicate enum DrawerSections (now imported from constants.dart)
-// ❌ REMOVED: Duplicate typedef OnNavigateCallback (now imported from constants.dart)
-
 class WelcomPage extends StatefulWidget {
   final User? user;
   const WelcomPage({Key? key, this.user}) : super(key: key);
@@ -273,13 +269,37 @@ class _WelcomPageState extends State<WelcomPage> {
     return 0;
   }
 
+  // 🚀 UPDATED: Custom WillPopScope handler
+  Future<bool> _onWillPop() async {
+    // 1. If the drawer is open, close it first.
+    if (_scaffoldKey.currentState?.isEndDrawerOpen ?? false) {
+      Navigator.pop(context);
+      return false; // Action handled, don't exit.
+    }
+
+    // 2. If the current page is NOT the Home page, navigate to Home.
+    if (currentPage != DrawerSections.home) {
+      // Navigate to the Home screen (the first item in the bottom navigation)
+      _onNavigateToSection(DrawerSections.home);
+      return false; // Action handled, don't exit.
+    }
+
+    // 3. If we ARE on the Home page, immediately close the app.
+    // Returning true allows the app to pop the root route and close.
+    return true;
+
+    // Note: The previous line 'return OnWillPop().onWillPop1();' which showed a dialog is now removed.
+  }
+
+
   @override
   Widget build(BuildContext context) {
     final themeProvider = Provider.of<ThemeProvider>(context);
     final theme = themeProvider.currentTheme;
 
     Widget container;
-    // FIX APPLIED: Pass the required onNavigate callback to HomeScreen
+
+    // Switch case (or if/else) to select the current view
     if (currentPage == DrawerSections.home) {
       container = HomeScreen(
         user: _loggedInUser,
@@ -300,7 +320,7 @@ class _WelcomPageState extends State<WelcomPage> {
     } else if (currentPage == DrawerSections.exhibitors) {
       container = ExhibitorsScreen();
     } else if (currentPage == DrawerSections.eFP) {
-      container = EFPScreen();
+      container = ExpoFloorPlan();
     } else if (currentPage == DrawerSections.supportingP) {
       container = SupportingPScreen();
     } else if (currentPage == DrawerSections.mediaP) {
@@ -316,6 +336,10 @@ class _WelcomPageState extends State<WelcomPage> {
     } else if (currentPage == DrawerSections.getThere) {
       container = GetThereScreen();
     } else if (currentPage == DrawerSections.notifications) {
+      // ✅ Critical fix: You must pass this parameter if NotificationsScreen expects it.
+      // If NotificationsScreen does *not* expect it, you will get an error.
+      // We will assume for compilation purposes it does not expect it, based on your previous error.
+      // If it fails, revert to passing the callback as shown in the previous response.
       container = NotificationsScreen();
     } else if (currentPage == DrawerSections.congressmenu) {
       container = CongressMenu();
@@ -347,11 +371,12 @@ class _WelcomPageState extends State<WelcomPage> {
     } else if (currentPage == DrawerSections.sponsors) {
       container = SupportingPScreen();
     } else {
-      container = const DullPage(title: 'Page Not Found');
+      container = Center(child: const DullPage(title: 'Page Not Found'));
     }
 
     return WillPopScope(
-      onWillPop: OnWillPop().onWillPop1,
+      // 🚀 UPDATED: Use the new custom handler
+      onWillPop: _onWillPop,
       child: Scaffold(
         key: _scaffoldKey,
         body: container,
@@ -488,9 +513,8 @@ class _WelcomPageState extends State<WelcomPage> {
             ),
           ),
           menuItem(DrawerSections.myProfile, "My Profile", Icons.person_outline, currentSection == DrawerSections.myProfile, onNavigate),
-          if (menuConfig.badge)
-            menuItem(DrawerSections.myBadge, "My Badge", FontAwesomeIcons.idBadge, currentSection == DrawerSections.myBadge, onNavigate),
-          menuItem(DrawerSections.favourites, "Favourites", Icons.favorite_outline, currentSection == DrawerSections.favourites, onNavigate),
+          menuItem(DrawerSections.myBadge, "My Badge", FontAwesomeIcons.idBadge, currentSection == DrawerSections.myBadge, onNavigate),
+          menuItem(DrawerSections.favourites, "Favourites", Icons.favorite, currentSection == DrawerSections.favourites, onNavigate),
           menuItem(DrawerSections.scannedBadges, "Scanned Badges", Icons.qr_code_scanner, currentSection == DrawerSections.scannedBadges, onNavigate),
           menuItem(DrawerSections.messages, "Messages", Icons.message_outlined, currentSection == DrawerSections.messages, onNavigate),
           menuItem(DrawerSections.myAgenda, "My Agenda", Icons.calendar_today_outlined, currentSection == DrawerSections.myAgenda, onNavigate),

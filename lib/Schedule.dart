@@ -47,9 +47,11 @@ class _SchelduleScreenState extends State<SchelduleScreen> {
     double height = MediaQuery.of(context).size.height;
     double width = MediaQuery.of(context).size.width;
 
-    return WillPopScope(
-      onWillPop: _onWillPop,
-      child: Scaffold(
+    return
+      //WillPopScope(
+      //onWillPop: _onWillPop,
+      //child:
+    Scaffold(
         backgroundColor:Colors.white,
         extendBodyBehindAppBar: true,
         body: FadeInDown(
@@ -71,7 +73,7 @@ class _SchelduleScreenState extends State<SchelduleScreen> {
             ),
           ),
         ),
-      ),
+      //),
     );
   }
 

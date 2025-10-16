@@ -1,9 +1,12 @@
 // lib/my_badge_screen.dart
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart'; // 💡 Import Provider
 import 'package:emecexpo/providers/theme_provider.dart'; // 💡 Import your ThemeProvider
 import 'package:emecexpo/model/badge_model.dart';
+
+import 'main.dart';
 
 class MyBadgeScreen extends StatelessWidget {
   const MyBadgeScreen({super.key});
@@ -13,10 +16,10 @@ class MyBadgeScreen extends StatelessWidget {
     // 💡 Access the theme provider and get the current theme.
     final themeProvider = Provider.of<ThemeProvider>(context);
     final theme = themeProvider.currentTheme;
-
+    late SharedPreferences prefs;
     // Example MyBadge data.
     final MyBadge userBadge = MyBadge(
-      name: 'YASSINE DOUMIL',
+      name: 'TEST TEST',
       role: 'Manager',
       company: 'SUBGENIOS sarl',
       qrCodeImagePath: 'assets/qr_code_placeholder.png',
@@ -31,6 +34,15 @@ class MyBadgeScreen extends StatelessWidget {
       backgroundColor: theme.whiteColor,
       appBar: AppBar(
         title: const Text('My Badge'),
+        leading: IconButton(
+          icon: Icon(Icons.arrow_back_ios, color: theme.whiteColor), // Assuming a light icon on a colored AppBar
+          onPressed: () async{
+            prefs = await SharedPreferences.getInstance();
+            prefs.setString("Data", "99");
+            Navigator.pushReplacement(
+                context, MaterialPageRoute(builder: (context) => WelcomPage()));
+          },
+        ),
         // ✅ Use theme colors for the AppBar
         backgroundColor: theme.primaryColor,
         foregroundColor: theme.whiteColor,

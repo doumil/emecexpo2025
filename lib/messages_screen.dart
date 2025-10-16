@@ -2,6 +2,8 @@
 import 'package:flutter/material.dart';
 import 'package:emecexpo/model/message_model.dart'; // Using your package name
 import 'package:emecexpo/model/scanned_badge_model.dart'; // Import ScannedBadge model
+import 'package:shared_preferences/shared_preferences.dart';
+
 
 class MessagesScreen extends StatefulWidget {
   final ScannedBadge recipientBadge; // The person you are messaging
@@ -13,6 +15,7 @@ class MessagesScreen extends StatefulWidget {
 }
 
 class _MessagesScreenState extends State<MessagesScreen> {
+  late SharedPreferences prefs;
   final TextEditingController _messageController = TextEditingController();
   final List<Message> _messages = []; // List to hold chat messages
   final ScrollController _scrollController = ScrollController(); // To scroll to bottom

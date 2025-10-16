@@ -108,26 +108,25 @@ class _ActivitesScreenState extends State<ActivitesScreen> {
     }
   }
 
-  Future<bool> _onWillPop() async {
+/*Future<bool> _onWillPop() async {
     return (await showDialog(
       context: context,
-      builder: (context) => new AlertDialog(
-        title: new Text('Êtes-vous sûr'),
-        content: new Text('Voulez-vous quitter une application'),
+      builder: (context) => AlertDialog(
+        title: const Text('Êtes-vous sûr'),
+        content: const Text('Voulez-vous quitter une application'),
         actions: <Widget>[
-          new TextButton(
+          TextButton(
             onPressed: () => Navigator.of(context).pop(false),
-            child: new Text('Non'),
+            child: const Text('Non'),
           ),
-          new TextButton(
+          TextButton(
             onPressed: () => SystemNavigator.pop(),
-            child: new Text('Oui '),
+            child: const Text('Oui '),
           ),
         ],
       ),
-    )) ??
-        false;
-  }
+    )) ?? false;
+  }*/
 
   @override
   Widget build(BuildContext context) {

@@ -17,26 +17,26 @@ class _BusinessScreenState extends State<BusinessScreen> {
     super.initState();
   }
 
-  Future<bool> _onWillPop() async {
-    return (await showDialog(
-      context: context,
-      builder: (context) => new AlertDialog(
-        title: new Text('Êtes-vous sûr'),
-        content: new Text('Voulez-vous quitter une application'),
-        actions: <Widget>[
-          new TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: new Text('Non'),
-          ),
-          new TextButton(
-            onPressed: () => SystemNavigator.pop(),
-            child: new Text('Oui '),
-          ),
-        ],
-      ),
-    )) ??
-        false;
-  }
+  // Future<bool> _onWillPop() async {
+  //   return (await showDialog(
+  //     context: context,
+  //     builder: (context) => new AlertDialog(
+  //       title: new Text('Êtes-vous sûr'),
+  //       content: new Text('Voulez-vous quitter une application'),
+  //       actions: <Widget>[
+  //         new TextButton(
+  //           onPressed: () => Navigator.of(context).pop(false),
+  //           child: new Text('Non'),
+  //         ),
+  //         new TextButton(
+  //           onPressed: () => SystemNavigator.pop(),
+  //           child: new Text('Oui '),
+  //         ),
+  //       ],
+  //     ),
+  //   )) ??
+  //       false;
+  // }
 
   @override
   Widget build(BuildContext context) {
@@ -46,9 +46,10 @@ class _BusinessScreenState extends State<BusinessScreen> {
     final themeProvider = Provider.of<ThemeProvider>(context);
     final theme = themeProvider.currentTheme;
 
-    return WillPopScope(
-        onWillPop: _onWillPop,
-        child: FadeInDown(
+    return
+      //WillPopScope(
+        //onWillPop: _onWillPop,
+         FadeInDown(
           duration: Duration(milliseconds: 500),
           child: Scaffold(
             // ✅ Apply a background color to the scaffold if needed, e.g., white or black
@@ -319,6 +320,7 @@ class _BusinessScreenState extends State<BusinessScreen> {
               ),
             ),
           ),
-        ));
+        //)
+    );
   }
 }

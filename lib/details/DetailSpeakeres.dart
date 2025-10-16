@@ -191,9 +191,11 @@ class _DetailSpeakersScreenState extends State<DetailSpeakersScreen> {
     final String speakerCompany = widget.speaker?.company ?? "Company";
     final String speakerBio = widget.speaker?.biographie ?? "No biography available.";
 
-    return WillPopScope(
-      onWillPop: _onWillPop,
-      child: Scaffold(
+    return
+      //WillPopScope(
+      //onWillPop: _onWillPop,
+      //child:
+    Scaffold(
         extendBodyBehindAppBar: false,
         appBar: AppBar(
           backgroundColor: const Color(0xFF261350),
@@ -357,7 +359,7 @@ class _DetailSpeakersScreenState extends State<DetailSpeakersScreen> {
             ),
           ),
         ),
-      ),
+     // ),
     );
   }
 

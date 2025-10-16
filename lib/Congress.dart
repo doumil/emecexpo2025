@@ -142,26 +142,26 @@ class _CongressScreenState extends State<CongressScreen> {
     }
   }
 
-  Future<bool> _onWillPop() async {
-    return (await showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Êtes-vous sûr'),
-        content: const Text('Voulez-vous quitter une application'),
-        actions: <Widget>[
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Non'),
-          ),
-          TextButton(
-            onPressed: () => SystemNavigator.pop(),
-            child: const Text('Oui '),
-          ),
-        ],
-      ),
-    )) ??
-        false;
-  }
+ // Future<bool> _onWillPop() async {
+    //   return (await showDialog(
+    //     context: context,
+    //     builder: (context) => new AlertDialog(
+    //       title: new Text('Êtes-vous sûr'),
+    //       content: new Text('Voulez-vous quitter une application'),
+    //       actions: <Widget>[
+    //         new TextButton(
+    //           onPressed: () => Navigator.of(context).pop(false),
+    //           child: new Text('Non'),
+    //         ),
+    //         new TextButton(
+    //           onPressed: () => SystemNavigator.pop(),
+    //           child: new Text('Oui '),
+    //         ),
+    //       ],
+    //     ),
+    //   )) ??
+    //       false;
+    // }
 
   @override
   Widget build(BuildContext context) {
@@ -169,9 +169,10 @@ class _CongressScreenState extends State<CongressScreen> {
     final themeProvider = Provider.of<ThemeProvider>(context);
     final theme = themeProvider.currentTheme;
 
-    return WillPopScope(
-      onWillPop: _onWillPop,
-      child: Scaffold(
+    return
+      //WillPopScope(
+      //onWillPop: _onWillPop,
+      Scaffold(
         // ✅ Apply a light background from the theme
         backgroundColor: Colors.grey[100],
         appBar: AppBar(
@@ -259,7 +260,7 @@ class _CongressScreenState extends State<CongressScreen> {
             ),
           ],
         ),
-      ),
+      //),
     );
   }
 
