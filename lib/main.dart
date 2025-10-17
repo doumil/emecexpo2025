@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'package:emecexpo/program_screen.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -305,7 +306,12 @@ class _WelcomPageState extends State<WelcomPage> {
         user: _loggedInUser,
         onNavigate: _onNavigateToSection,
       );
-    } else if (currentPage == DrawerSections.networking) {
+    }
+    // 🚀 CHANGE 2: Add navigation for DrawerSections.program
+    else if (currentPage == DrawerSections.program) {
+      container = const ProgramScreen();
+    }
+    else if (currentPage == DrawerSections.networking) {
       container = NetworkinScreen();
     } else if (currentPage == DrawerSections.myAgenda) {
       container = MyAgendaScreen();
@@ -473,6 +479,8 @@ class _WelcomPageState extends State<WelcomPage> {
           menuItem(DrawerSections.home, "Home", Icons.home, currentSection == DrawerSections.home, onNavigate),
           menuItem(DrawerSections.notifications, "Notifications", Icons.notifications, currentSection == DrawerSections.notifications, onNavigate),
 
+          const Divider(color: Colors.white24, height: 20),
+
           if (menuConfig.exhibitors) ...[
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
@@ -487,6 +495,7 @@ class _WelcomPageState extends State<WelcomPage> {
             ),
             if (menuConfig.floorPlan)
               menuItem(DrawerSections.eFP, "Floor Plan", Icons.location_on_outlined, currentSection == DrawerSections.eFP, onNavigate),
+            menuItem(DrawerSections.program, "Program", Icons.calendar_today_outlined, currentSection == DrawerSections.program, onNavigate),
             if (menuConfig.exhibitors)
               menuItem(DrawerSections.exhibitors, "Exhibitors", Icons.store_mall_directory_outlined, currentSection == DrawerSections.exhibitors, onNavigate),
             if (menuConfig.speakers)
@@ -570,3 +579,20 @@ class _WelcomPageState extends State<WelcomPage> {
     );
   }
 }
+
+// **NOTE:** The AppContent class must be defined elsewhere in your code to resolve
+// the 'ConnectivityWrapper' error, which was present in your previous prompt.
+// Assuming you have added it back to fix the compilation error,
+// the code above now only includes the two necessary changes for 'program' navigation.
+//
+// class AppContent extends StatelessWidget {
+//   final Widget mainAppWidget;
+//   const AppContent({Key? key, required this.mainAppWidget}) : super(key: key);
+//
+//   @override
+//   Widget build(BuildContext context) {
+//     return ConnectivityWrapper(
+//       child: mainAppWidget,
+//     );
+//   }
+// }

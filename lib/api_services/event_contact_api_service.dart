@@ -18,6 +18,7 @@ class EventContactApiService {
         final Map<String, dynamic> jsonResponse = json.decode(response.body) as Map<String, dynamic>;
 
         if (jsonResponse['success'] == true && jsonResponse['data'] is List && jsonResponse['data'].isNotEmpty) {
+          // The fromJson factory handles all complex parsing and model instantiation
           return EventContactModel.fromJson(jsonResponse);
         } else {
           throw Exception('API response succeeded but event data is missing or invalid.');
@@ -26,7 +27,7 @@ class EventContactApiService {
         throw Exception('Failed to load event details. Status Code: ${response.statusCode}');
       }
     } catch (e) {
-      // Re-throw the error to be caught by the FutureBuilder
+      // Re-throw the error for the calling widget (e.g., FutureBuilder)
       throw Exception('Network or parsing error: $e');
     }
   }

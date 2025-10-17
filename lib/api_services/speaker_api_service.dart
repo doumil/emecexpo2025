@@ -6,7 +6,7 @@ import 'package:flutter/foundation.dart';
 import '../model/speakers_model.dart'; // Ensure correct path
 
 class SpeakerApiService {
-  static const String _apiUrl = 'https://buzzevents.co/api/edition/654/speakers';
+  static const String _apiUrl = 'https://buzzevents.co/api/edition/1118/speakers';
 
   Future<List<Speakers>> fetchSpeakers() async {
     try {

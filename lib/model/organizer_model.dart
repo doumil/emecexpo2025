@@ -17,8 +17,8 @@ class OrganizerModel {
 
   factory OrganizerModel.fromJson(Map<String, dynamic> json) {
     return OrganizerModel(
-      // Ensure all values are safely cast or fall back to 'N/A'
-      name: json['name'] as String? ?? 'N/A Organizer',
+      // The keys here must match the keys in the 'organisateurs' array from the API response
+      name: json['nom_organisateur'] as String? ?? 'N/A Organizer', // Assuming 'nom_organisateur' from API
       email: json['email'] as String? ?? 'N/A Email',
       phone: json['tel'] as String? ?? 'N/A Phone',
       company: json['societe'] as String? ?? 'N/A Company',

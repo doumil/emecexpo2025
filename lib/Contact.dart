@@ -3,6 +3,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+// 🚀 New Import for launching URLs
+import 'package:url_launcher/url_launcher.dart';
 import 'package:emecexpo/api_services/event_contact_api_service.dart';
 import 'package:emecexpo/model/event_contact_model.dart';
 import 'package:emecexpo/model/organizer_model.dart';
@@ -34,6 +36,26 @@ class _ContactScreenState extends State<ContactScreen> {
     _eventFuture = _apiService.fetchEventDetails();
   }
 
+  // 🚀 New Function: Launch Map URL
+  Future<void> _launchMapUrl(String address) async {
+    // URL-encode the address to ensure it works correctly in map apps
+    final encodedAddress = Uri.encodeComponent(address);
+
+    // Use Google Maps query as a reliable universal method
+    final urlString = 'https://www.google.com/maps/search/?api=1&query=$encodedAddress';
+    final Uri url = Uri.parse(urlString);
+
+    if (!await launchUrl(url, mode: LaunchMode.externalApplication)) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Could not launch map application.')),
+        );
+      }
+      throw Exception('Could not launch $url');
+    }
+  }
+
+
   @override
   Widget build(BuildContext context) {
     final themeProvider = Provider.of<ThemeProvider>(context);
@@ -47,7 +69,6 @@ class _ContactScreenState extends State<ContactScreen> {
           onPressed: () async{
             prefs = await SharedPreferences.getInstance();
             prefs.setString("Data", "99");
-            // NOTE: Ensure 'WelcomPage()' is defined and available in 'main.dart'
             Navigator.pushReplacement(
                 context, MaterialPageRoute(builder: (context) => WelcomPage()));
           },
@@ -104,8 +125,10 @@ class _ContactScreenState extends State<ContactScreen> {
     final formattedStart = formatDate(eventData.scheduledStartDate);
     final formattedEnd = formatDate(eventData.scheduledEndDate);
 
-    // NOTE: Hardcoded time remains static as it's not present in the API
     const String staticTime = '9h to 19h';
+
+    // Static address for the exhibition location
+    const String locationAddress = 'J93C+Q8Q Foire Internationale de Casablanca, Rue Doukkala, Casablanca 20030';
 
 
     return SingleChildScrollView(
@@ -124,10 +147,10 @@ class _ContactScreenState extends State<ContactScreen> {
                 padding: const EdgeInsets.all(16.0),
                 child: Column(
                   children: [
-                    // 🚀 CHANGED: Logo height increased to 150
+                    // Dynamic Network Image for the logo (height: 150)
                     Image.network(
                       '$_logoBaseUrl${eventData.logoName}',
-                      height: 200, // Increased size
+                      height: 150,
                       loadingBuilder: (context, child, loadingProgress) {
                         if (loadingProgress == null) return child;
                         return SizedBox(height: 150, child: Center(child: CircularProgressIndicator(color: theme.secondaryColor)));
@@ -139,8 +162,9 @@ class _ContactScreenState extends State<ContactScreen> {
                     const SizedBox(height: 16.0),
                     // Dynamic event description
                     Text(
-                      eventData.description,
-                      textAlign: TextAlign.center,
+                      'If you have any questions or comments, please do not hesitate to contact us by phone or email.',
+                      //eventData.description,
+                       textAlign: TextAlign.center,
                       style: TextStyle(fontSize: 16.0, color: theme.blackColor.withOpacity(0.6)),
                     ),
                   ],
@@ -163,26 +187,64 @@ class _ContactScreenState extends State<ContactScreen> {
                 padding: const EdgeInsets.all(16.0),
                 child: Column(
                   children: <Widget>[
-                    // 🚀 CHANGED: Display Start Day
+                    // Display Start Day
                     _buildContactInfoRow(
                       icon: Icons.access_time,
                       text: 'Start Day: $formattedStart ($staticTime)',
                       theme: theme,
                     ),
                     const Divider(),
-                    // 🚀 CHANGED: Display End Day
+                    // Display End Day
                     _buildContactInfoRow(
                       icon: Icons.access_time,
                       text: 'Last Day: $formattedEnd ($staticTime)',
                       theme: theme,
                     ),
-                    // ❌ REMOVED: Organizer address row
                   ],
                 ),
               ),
             ),
 
-            // Section 3: Contact Details (Phone and Email)
+            // Section 3: The Exhibition's location (Clickable)
+            Text(
+              'The Exhibition\'s location',
+              style: TextStyle(fontSize: 18, color: theme.primaryColor, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 10),
+            Card(
+              margin: const EdgeInsets.only(bottom: 20.0),
+              color: theme.whiteColor,
+              elevation: 2.0,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8.0)),
+              child: InkWell( // 🚀 Make the card content tappable
+                onTap: () => _launchMapUrl(locationAddress),
+                child: Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: <Widget>[
+                      _buildContactInfoRow(
+                        icon: Icons.map,
+                        text: locationAddress,
+                        theme: theme,
+                        isClickable: true, // Pass flag to indicate clickability
+                      ),
+                      // Optional hint for the user
+                      Padding(
+                        padding: const EdgeInsets.only(top: 8.0, left: 39.0),
+                        child: Text(
+                          'Tap to open in map application',
+                          style: TextStyle(fontSize: 12, color: theme.secondaryColor.withOpacity(0.8)),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            // END The Exhibition's location
+
+            // Section 4: Contact Details (Phone, Email, AND Organizer Address)
             Text(
               'CONTACT',
               style: TextStyle(fontSize: 18, color: theme.primaryColor, fontWeight: FontWeight.bold),
@@ -209,6 +271,13 @@ class _ContactScreenState extends State<ContactScreen> {
                       text: organizer.email,
                       theme: theme,
                     ),
+                    const Divider(),
+                    // Dynamic organizer address (Office/Organizer Location)
+                    _buildContactInfoRow(
+                      icon: Icons.business,
+                      text: organizer.address,
+                      theme: theme,
+                    ),
                   ],
                 ),
               ),
@@ -220,11 +289,12 @@ class _ContactScreenState extends State<ContactScreen> {
     );
   }
 
-  // Helper method for consistent contact rows (unchanged)
+  // Helper method for consistent contact rows (MODIFIED)
   Widget _buildContactInfoRow({
     required IconData icon,
     required String text,
     required AppThemeData theme,
+    bool isClickable = false, // 🚀 Added flag for click state
   }) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8.0),
@@ -241,13 +311,18 @@ class _ContactScreenState extends State<ContactScreen> {
               text,
               style: TextStyle(
                 fontSize: 16,
-                color: theme.blackColor.withOpacity(0.87),
+                color: isClickable ? Colors.blue.shade800 : theme.blackColor.withOpacity(0.87), // Highlight clickable text
+                decoration: isClickable ? TextDecoration.underline : TextDecoration.none,
               ),
               overflow: TextOverflow.visible,
             ),
           ),
+          // Add a navigation arrow for clickable rows
+          if (isClickable)
+            Icon(Icons.open_in_new, size: 20, color: theme.secondaryColor),
         ],
       ),
     );
   }
 }
+// NOTE: Remember to ensure your AppThemeData, OrganizerModel, and EventContactModel classes are correct.

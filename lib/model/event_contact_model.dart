@@ -6,7 +6,7 @@ class EventContactModel {
   final String eventName;
   final String description;
   final String logoName;
-  final OrganizerModel organizer;
+  final OrganizerModel organizer; // Now uses the updated OrganizerModel
   final String scheduledStartDate;
   final String scheduledEndDate;
 
@@ -35,6 +35,7 @@ class EventContactModel {
         ? (eventData['organisateurs'][0] as Map<String, dynamic>? ?? {})
         : {};
 
+    // Delegate to the new OrganizerModel.fromJson
     final organizer = OrganizerModel.fromJson(organizerData);
 
     // Safely access nested schedule data and cast to Map<String, dynamic>
@@ -50,8 +51,6 @@ class EventContactModel {
       description: eventData['description'] as String? ?? 'No description available.',
       logoName: eventData['logo'] as String? ?? 'default-logo.png',
       organizer: organizer,
-
-      // Access keys on the now correctly-typed 'start' and 'end' maps
       scheduledStartDate: start['date'] as String? ?? '2000-01-01 00:00:00.000000',
       scheduledEndDate: end['date'] as String? ?? '2000-01-01 00:00:00.000000',
     );

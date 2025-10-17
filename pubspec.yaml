@@ -62,6 +62,8 @@ dependencies:
   app_settings: any
   url_launcher: any
   sqflite: any
+  google_maps_flutter:
+  geocoding:
   provider: any
   equatable: any
   #flutter_mute: any
