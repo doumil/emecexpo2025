@@ -1,69 +1,110 @@
 // lib/model/speakers_model.dart
 
-// Define the global default fallback URL
+import 'dart:convert'; // Included for completeness, often needed for shared prefs or map operations
+
+// --- Constants ---
 const String kDefaultSpeakerImageUrl = 'https://buzzevents.co/uploads/ICON-EMEC.png';
-// Base URL for prepending to relative paths (can be the same as the base API)
-const String kImageBaseUrl = 'https://buzzevents.co/';
 
 
-class Speakers {
-  String prenom; // maps to API 'prenom'
-  String nom;    // maps to API 'nom'
-  String email;
-  String company; // maps to API 'compagnie'
-  String poste;   // maps to API 'poste'
-  String biographie; // maps to API 'biographie' (now non-null)
-  String pic;      // maps to API 'pic' (now non-null, set to default if needed)
+// --- 1. Top-Level Data Model ---
+class SpeakersDataModel {
+  // The list of unique date strings (e.g., "YYYY-MM-DD")
+  final List<String> periods;
+  final List<Speakers> speakers;
 
-  // Local properties for UI logic
-  bool isRecommended;
-  bool isFavorite;
+  SpeakersDataModel({required this.periods, required this.speakers});
 
-  Speakers({
-    required this.prenom,
-    required this.nom,
-    required this.email,
-    required this.company,
-    required this.poste,
-    required this.biographie,
-    required this.pic,
-    this.isRecommended = false,
-    this.isFavorite = false,
-  });
+  factory SpeakersDataModel.fromJson(Map<String, dynamic> json) {
+    // Navigate to the 'data' object first
+    final data = json['data'] ?? {};
 
-  factory Speakers.fromJson(Map<String, dynamic> json) {
-    // 1. Resolve Image URL
-    String? picUrl = json['pic'] as String?;
-
-    // Fallback to default if null or empty
-    if (picUrl == null || picUrl.isEmpty) {
-      picUrl = kDefaultSpeakerImageUrl;
-    }
-    // If it's a relative path, prepend the base URL (only if not already a full URL)
-    else if (!picUrl.startsWith('http')) {
-      picUrl = '$kImageBaseUrl$picUrl';
-    }
-
-
-    // 2. Determine recommended status (e.g., if company name is long)
-    // NOTE: We use the null-coalescing operator to fix the "receiver can be 'null'" error
-    bool recommended = (json['compagnie'] as String? ?? '').length > 15;
-
-
-    return Speakers(
-      prenom: json['prenom'] as String? ?? 'N/A',
-      nom: json['nom'] as String? ?? 'N/A',
-      email: json['email'] as String? ?? '',
-      company: json['compagnie'] as String? ?? '',
-      poste: json['poste'] as String? ?? 'Speaker',
-      // Ensure biographie is non-null
-      biographie: json['biographie'] as String? ?? 'No biography provided.',
-      pic: picUrl, // Use the resolved URL
-      isRecommended: recommended,
-      isFavorite: false, // Default
+    return SpeakersDataModel(
+      // Safely access 'periods'
+      periods: List<String>.from(data['periods'] ?? []),
+      // Safely access and map 'speakers'
+      speakers: (data['speakers'] as List? ?? [])
+          .map((i) => Speakers.fromJson(i))
+          .toList(),
     );
   }
 }
 
-// NOTE: You still need the CongressClass and Speaker definitions
-// in their respective files, as shown in your original context.
+// --- 2. Program Session Model ---
+class ProgramSession {
+  final int id;
+  final String nom; // Session name
+  final String dateDeb; // Start Date/Time string (e.g., "09/29/2025 12:00 PM")
+  final String dateFin; // End Date/Time string
+  final String? emplacement;
+  final String type; // Session type (e.g., "Break", "Webinar")
+  final String description;
+
+  ProgramSession({
+    required this.id,
+    required this.nom,
+    required this.dateDeb,
+    required this.dateFin,
+    this.emplacement,
+    required this.type,
+    required this.description,
+  });
+
+  factory ProgramSession.fromJson(Map<String, dynamic> json) {
+    return ProgramSession(
+      id: json['id'],
+      nom: json['nom'] ?? '',
+      dateDeb: json['date_deb'] ?? '',
+      dateFin: json['date_fin'] ?? '',
+      emplacement: json['emplacement'],
+      type: json['type'] ?? '',
+      description: json['description'] ?? '',
+    );
+  }
+}
+
+// --- 3. Speakers Model ---
+class Speakers {
+  final int id;
+  final String prenom;
+  final String nom;
+  final String company;
+  final String poste;
+  final String? pic;
+  final String? biographie;
+  bool isFavorite;
+  // ✅ FIX: Added to resolve the error in SpeakersScreen.dart. Defaulted to false.
+  final bool isRecommended;
+  // API uses 'programs' key for speaker sessions
+  final List<ProgramSession> sessions;
+
+  Speakers({
+    required this.id,
+    required this.prenom,
+    required this.nom,
+    required this.company,
+    required this.poste,
+    this.pic,
+    this.biographie,
+    this.isFavorite = false,
+    this.isRecommended = false,
+    required this.sessions,
+  });
+
+  factory Speakers.fromJson(Map<String, dynamic> json) {
+    return Speakers(
+      id: json['id'],
+      prenom: json['prenom'] ?? '',
+      nom: json['nom'] ?? '',
+      company: json['compagnie'] ?? '',
+      poste: json['poste'] ?? '',
+      pic: json['pic'],
+      biographie: json['biographie'],
+      // Note: The key for sessions is 'programs' in the API response
+      sessions: (json['programs'] as List? ?? [])
+          .map((i) => ProgramSession.fromJson(i))
+          .toList(),
+      // Since no field exists, we hardcode to false to satisfy the widget logic
+      isRecommended: false,
+    );
+  }
+}

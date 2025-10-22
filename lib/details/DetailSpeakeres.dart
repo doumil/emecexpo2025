@@ -1,42 +1,51 @@
+// lib/screens/details/DetailSpeakersScreen.dart
+
 import 'package:animate_do/animate_do.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:intl/intl.dart';
+import 'package:intl/date_symbol_data_local.dart';
+import 'package:provider/provider.dart'; // 👈 Needed for theme access
 
-// Assuming your model imports are correct
-import 'package:emecexpo/model/congress_model_detail.dart';
-import 'package:emecexpo/model/speakers_model.dart';
-import '../model/congress_model.dart';
+// Assuming your model and API imports are correct
+import '../model/app_theme_data.dart';
+import '../model/speakers_model.dart';
+import '../providers/theme_provider.dart'; // 👈 ThemeProvider import
+import 'DetailSessionScreen.dart'; // 👈 Import the session detail screen
 
+// Constants assumed from speakers_model.dart
+const String kDefaultSpeakerImageUrl = 'https://buzzevents.co/uploads/ICON-EMEC.png';
 
 class DetailSpeakersScreen extends StatefulWidget {
   final Speakers? speaker;
+  final List<String> periods;
 
-  const DetailSpeakersScreen({Key? key, this.speaker}) : super(key: key);
+  const DetailSpeakersScreen({Key? key, this.speaker, required this.periods}) : super(key: key);
 
   @override
   _DetailSpeakersScreenState createState() => _DetailSpeakersScreenState();
 }
 
 class _DetailSpeakersScreenState extends State<DetailSpeakersScreen> {
-  List<CongressClass> _allSessions = [];
-  List<CongressClass> _filteredSessions = [];
+
+  List<ProgramSession> _allSessions = [];
+  List<ProgramSession> _filteredSessions = [];
+
+  List<String> _apiDateFilters = [];
   bool isLoading = true;
   int? _selectedDateIndex;
-  final List<String> _dateFilters = ["14 AVR.", "15 AVR.", "16 AVR."];
-
   bool _isSpeakerFavorite = false;
-
-  // No need for _imageBaseUrl here, as the model resolves the full URL into speaker.pic
 
   @override
   void initState() {
     super.initState();
+    initializeDateFormatting('fr_FR', null);
     _isSpeakerFavorite = widget.speaker?.isFavorite ?? false;
     _loadData();
   }
 
-  // Helper function to get the correct speaker image source (URL or fallback asset)
   Widget _getSpeakerImage(double radius) {
+    // ... (Image loading logic remains the same)
     final String finalUrl = widget.speaker?.pic ?? kDefaultSpeakerImageUrl;
 
     return CircleAvatar(
@@ -59,7 +68,7 @@ class _DetailSpeakersScreenState extends State<DetailSpeakersScreen> {
             );
           },
           errorBuilder: (context, error, stackTrace) => Image.asset(
-            'assets/placeholder.png',
+            'assets/placeholder.png', // Placeholder asset path
             fit: BoxFit.cover,
             width: radius * 2,
             height: radius * 2,
@@ -69,69 +78,27 @@ class _DetailSpeakersScreenState extends State<DetailSpeakersScreen> {
     );
   }
 
+  // ... (_loadData, _filterSessionsByDate, _onWillPop methods remain the same)
   _loadData() async {
-    await Future.delayed(const Duration(seconds: 1)); // Simulate network delay
+    isLoading = true;
+    if (mounted) setState(() {});
 
-    final targetSpeakerName = "${widget.speaker?.prenom ?? ''} ${widget.speaker?.nom ?? ''}".trim();
+    _allSessions = widget.speaker?.sessions ?? [];
 
-    _allSessions.clear();
-
-    final Speaker speakerInSessionModel = Speaker(
-      name: targetSpeakerName,
-      imageUrl: widget.speaker?.pic ?? kDefaultSpeakerImageUrl,
-    );
-
-    if (targetSpeakerName.isNotEmpty) {
-      // Static session data associated with the current speaker
-      _allSessions.add(
-        CongressClass(
-          id: 1,
-          title: "The Digital Footprint to Financial Inclusion",
-          subtitle: "Panel Discussion",
-          date: "mer., 14 avr. 2025",
-          time: "10:00 - 11:00 | Africa(Casablanca time)",
-          location: "Hall A, Stage 1",
-          stage: "Finance Stage",
-          tags: ["GITEX Africa", "FinTech"],
-          speakers: [speakerInSessionModel],
-          isSessionOver: false,
-        ),
-      );
-      _allSessions.add(
-        CongressClass(
-          id: 2,
-          title: "Future of Finance Summit",
-          subtitle: "Keynote Address",
-          date: "jeu., 15 avr. 2025",
-          time: "11:30 - 12:30 | Africa(Casablanca time)",
-          location: "Main Auditorium",
-          stage: "Main Stage",
-          tags: ["Summit"],
-          speakers: [speakerInSessionModel],
-          isSessionOver: false,
-        ),
-      );
-      _allSessions.add(
-        CongressClass(
-          id: 3,
-          title: "Blockchain in Banking",
-          subtitle: "Interactive Workshop",
-          date: "ven., 16 avr. 2025",
-          time: "14:00 - 15:30 | Africa(Casablanca time)",
-          location: "Workshop Room 3",
-          stage: "Innovation Lab",
-          tags: ["Blockchain", "Workshop"],
-          speakers: [speakerInSessionModel],
-          isSessionOver: true,
-        ),
-      );
-    }
+    _apiDateFilters = widget.periods.map((dateString) {
+      try {
+        final date = DateTime.parse(dateString);
+        return DateFormat('dd MMM.', 'fr_FR').format(date).toUpperCase();
+      } catch (e) {
+        return dateString;
+      }
+    }).toList();
 
     if (mounted) {
       setState(() {
         isLoading = false;
         _filteredSessions = List.from(_allSessions);
-        if (_allSessions.isNotEmpty) {
+        if (_apiDateFilters.isNotEmpty) {
           _filterSessionsByDate(0);
         } else {
           _selectedDateIndex = null;
@@ -141,7 +108,7 @@ class _DetailSpeakersScreenState extends State<DetailSpeakersScreen> {
   }
 
   void _filterSessionsByDate(int index) {
-    if (index < 0 || index >= _dateFilters.length) {
+    if (index < 0 || index >= _apiDateFilters.length) {
       setState(() {
         _selectedDateIndex = null;
         _filteredSessions = List.from(_allSessions);
@@ -149,11 +116,31 @@ class _DetailSpeakersScreenState extends State<DetailSpeakersScreen> {
       return;
     }
 
-    String selectedDateShortForm = _dateFilters[index];
+    final String selectedFilterText = _apiDateFilters[index].toLowerCase();
 
-    List<CongressClass> sessionsForDay = _allSessions.where((session) {
-      return session.date != null && session.date!.toLowerCase().contains(selectedDateShortForm.toLowerCase());
+    final DateFormat sessionInputFormat = DateFormat('MM/dd/yyyy h:mm a');
+
+    List<ProgramSession> sessionsForDay = _allSessions.where((session) {
+      try {
+        final sessionDate = sessionInputFormat.parse(session.dateDeb);
+        final sessionDateShort = DateFormat('dd MMM.', 'fr_FR').format(sessionDate).toUpperCase();
+
+        return sessionDateShort.toLowerCase() == selectedFilterText;
+      } catch (e) {
+        print("Error filtering session date: $e");
+        return false;
+      }
     }).toList();
+
+    sessionsForDay.sort((a, b) {
+      try {
+        final timeA = sessionInputFormat.parse(a.dateDeb);
+        final timeB = sessionInputFormat.parse(b.dateDeb);
+        return timeA.compareTo(timeB);
+      } catch (e) {
+        return 0;
+      }
+    });
 
     setState(() {
       _selectedDateIndex = index;
@@ -178,12 +165,16 @@ class _DetailSpeakersScreenState extends State<DetailSpeakersScreen> {
           ),
         ],
       ),
-    )) ??
-        false;
+    )) ?? false;
   }
+  // ... (end of methods that remain the same)
 
   @override
   Widget build(BuildContext context) {
+    // 💡 Access the theme provider and get the current theme.
+    final themeProvider = Provider.of<ThemeProvider>(context);
+    final theme = themeProvider.currentTheme;
+
     final String speakerName = widget.speaker?.prenom != null && widget.speaker!.nom != null
         ? "${widget.speaker!.prenom} ${widget.speaker!.nom}"
         : "Speaker Name";
@@ -191,180 +182,214 @@ class _DetailSpeakersScreenState extends State<DetailSpeakersScreen> {
     final String speakerCompany = widget.speaker?.company ?? "Company";
     final String speakerBio = widget.speaker?.biographie ?? "No biography available.";
 
-    return
-      //WillPopScope(
-      //onWillPop: _onWillPop,
-      //child:
-    Scaffold(
-        extendBodyBehindAppBar: false,
-        appBar: AppBar(
-          backgroundColor: const Color(0xFF261350),
-          elevation: 0,
-          leading: IconButton(
-            icon: const Icon(Icons.arrow_back_ios, color: Colors.white),
-            onPressed: () => Navigator.of(context).pop(),
-          ),
-          actions: [
-            IconButton(
-              icon: Icon(
-                _isSpeakerFavorite ? Icons.star : Icons.star_border,
-                color: Colors.white,
-              ),
-              onPressed: () {
-                setState(() {
-                  _isSpeakerFavorite = !_isSpeakerFavorite;
-                  widget.speaker?.isFavorite = _isSpeakerFavorite;
-                });
-              },
-            ),
-          ],
+    // Theme color variables for consistency
+    final Color primaryContentColor = theme.blackColor;
+    final Color accentColor = theme.secondaryColor;
+
+    return Scaffold(
+      extendBodyBehindAppBar: false,
+      // ✅ Use theme.whiteColor as the background
+      backgroundColor: theme.whiteColor,
+      appBar: AppBar(
+        // ✅ Use theme.primaryColor for the AppBar background
+        backgroundColor: theme.primaryColor,
+        elevation: 0,
+        leading: IconButton(
+          // ✅ Use theme.whiteColor for the back button
+          icon: const Icon(Icons.arrow_back_ios, color: Colors.white),
+          onPressed: () => Navigator.of(context).pop(),
         ),
-        body: FadeInDown(
-          duration: const Duration(milliseconds: 500),
-          child: SingleChildScrollView(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // --- Speaker Profile Section ---
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 30),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.grey.withOpacity(0.1),
-                        spreadRadius: 3,
-                        blurRadius: 7,
-                        offset: const Offset(0, 3),
-                      ),
-                    ],
-                  ),
-                  child: Column(
-                    children: [
-                      Stack(
-                        alignment: Alignment.bottomRight,
-                        children: [
-                          _getSpeakerImage(50),
-                          Positioned(
-                            right: 0,
-                            bottom: 0,
-                            child: Container(
-                              padding: const EdgeInsets.all(5),
-                              decoration: BoxDecoration(
-                                color: Colors.grey[300],
-                                shape: BoxShape.circle,
-                              ),
-                              child: const Icon(Icons.mic_none, size: 20, color: Colors.black54),
+        actions: [
+          /*IconButton(
+            icon: Icon(
+              _isSpeakerFavorite ? Icons.star : Icons.star_border,
+              // ✅ Use theme.whiteColor for the icon color
+              color: Colors.white,
+            ),
+            onPressed: () {
+              setState(() {
+                _isSpeakerFavorite = !_isSpeakerFavorite;
+                widget.speaker?.isFavorite = _isSpeakerFavorite;
+              });
+            },
+          ),*/
+        ],
+      ),
+      body: FadeInDown(
+        duration: const Duration(milliseconds: 500),
+        child: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // --- Speaker Profile Section ---
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 30),
+                decoration: BoxDecoration(
+                  // ✅ Use theme.whiteColor
+                  color: theme.whiteColor,
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.grey.withOpacity(0.1),
+                      spreadRadius: 3,
+                      blurRadius: 7,
+                      offset: const Offset(0, 3),
+                    ),
+                  ],
+                ),
+                child: Column(
+                  children: [
+                    Stack(
+                      alignment: Alignment.bottomRight,
+                      children: [
+                        _getSpeakerImage(50),
+                        Positioned(
+                          right: 0,
+                          bottom: 0,
+                          child: Container(
+                            padding: const EdgeInsets.all(5),
+                            decoration: BoxDecoration(
+                              color: Colors.grey[300],
+                              shape: BoxShape.circle,
                             ),
+                            child: Icon(Icons.mic_none, size: 20, color: primaryContentColor.withOpacity(0.7)),
                           ),
-                        ],
-                      ),
-                      const SizedBox(height: 15),
-                      Text(
-                        speakerName,
-                        style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.black87),
-                      ),
-                      const SizedBox(height: 5),
-                      Text(
-                        speakerPoste,
-                        style: const TextStyle(fontSize: 16, color: Colors.grey),
-                        textAlign: TextAlign.center,
-                      ),
-                      Text(
-                        speakerCompany,
-                        style: const TextStyle(fontSize: 16, color: Colors.grey),
-                        textAlign: TextAlign.center,
-                      ),
-                    ],
-                  ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 15),
+                    Text(
+                      speakerName,
+                      // ✅ Use theme.blackColor
+                      style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: primaryContentColor),
+                    ),
+                    const SizedBox(height: 5),
+                    Text(
+                      speakerPoste,
+                      // ✅ Use theme.blackColor (with opacity)
+                      style: TextStyle(fontSize: 16, color: primaryContentColor.withOpacity(0.6)),
+                      textAlign: TextAlign.center,
+                    ),
+                    Text(
+                      speakerCompany,
+                      // ✅ Use theme.blackColor (with opacity)
+                      style: TextStyle(fontSize: 16, color: primaryContentColor.withOpacity(0.6)),
+                      textAlign: TextAlign.center,
+                    ),
+                  ],
                 ),
+              ),
 
-                // --- Biography Section ---
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 20.0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        "Biography",
-                        style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.black87),
-                      ),
-                      const SizedBox(height: 10),
-                      Text(
-                        speakerBio,
-                        style: const TextStyle(fontSize: 16, color: Colors.black54, height: 1.5),
-                        textAlign: TextAlign.justify,
-                      ),
-                    ],
-                  ),
+              // --- Biography Section ---
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 20.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      "Biography",
+                      // ✅ Use theme.blackColor
+                      style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: primaryContentColor),
+                    ),
+                    const SizedBox(height: 10),
+                    Text(
+                      speakerBio,
+                      // ✅ Use theme.blackColor (with opacity)
+                      style: TextStyle(fontSize: 16, color: primaryContentColor.withOpacity(0.7), height: 1.5),
+                      textAlign: TextAlign.justify,
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 5),
+              ),
+              const SizedBox(height: 5),
 
-                // --- Speaker's Sessions Section ---
-                const Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 20.0),
-                  child: Text(
-                    "Speaker's Sessions",
-                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.black87),
-                  ),
+              // --- Speaker's Sessions Section ---
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20.0),
+                child: Text(
+                  "Speaker's Sessions",
+                  // ✅ Use theme.blackColor
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: primaryContentColor),
                 ),
-                const SizedBox(height: 15),
+              ),
+              const SizedBox(height: 15),
 
-                // Date Selection Buttons
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 20.0),
+              // Date Selection Buttons (using dynamic API filters)
+              isLoading
+                  ? Center(child: Padding(padding: const EdgeInsets.all(8.0), child: Text("Loading program days...", style: TextStyle(color: primaryContentColor.withOpacity(0.6)))))
+                  : _apiDateFilters.isEmpty
+                  ? const SizedBox.shrink()
+                  : Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20.0),
+                child: SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.start,
-                    children: List.generate(_dateFilters.length, (index) {
+                    children: List.generate(_apiDateFilters.length, (index) {
                       return Padding(
                         padding: const EdgeInsets.only(right: 10.0),
-                        child: _buildDateButton(_dateFilters[index], index),
+                        child: _buildDateButton(_apiDateFilters[index], index, theme), // 💡 Pass theme
                       );
                     }),
                   ),
                 ),
-                const SizedBox(height: 20),
+              ),
+              const SizedBox(height: 20),
 
-                // List of Sessions
-                isLoading
-                    ? const Center(child: Padding(padding: EdgeInsets.all(30.0), child: CircularProgressIndicator()))
-                    : _filteredSessions.isEmpty
-                    ? Center(
-                  child: Padding(
-                    padding: const EdgeInsets.all(20.0),
-                    child: Text(
-                      _selectedDateIndex != null
-                          ? "No sessions scheduled for this speaker on ${_dateFilters[_selectedDateIndex!]}."
-                          : "No sessions scheduled for this speaker.",
-                      style: const TextStyle(fontSize: 16, color: Colors.grey),
-                      textAlign: TextAlign.center,
-                    ),
+              // List of Sessions
+              isLoading
+                  ? Center(child: Padding(padding: const EdgeInsets.all(30.0), child: CircularProgressIndicator(color: accentColor))) // ✅ Use theme.secondaryColor
+                  : _allSessions.isEmpty
+                  ? Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(20.0),
+                  child: Text(
+                    "This speaker has no scheduled sessions.",
+                    style: TextStyle(fontSize: 16, color: primaryContentColor.withOpacity(0.6)),
+                    textAlign: TextAlign.center,
                   ),
-                )
-                    : ListView.builder(
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  itemCount: _filteredSessions.length,
-                  itemBuilder: (context, index) {
-                    final session = _filteredSessions[index];
-                    return Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 8.0),
-                      child: _buildSessionCard(session),
-                    );
-                  },
                 ),
-                const SizedBox(height: 20),
-              ],
-            ),
+              )
+                  : _filteredSessions.isEmpty
+                  ? Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(20.0),
+                  child: Text(
+                    _selectedDateIndex != null && _apiDateFilters.isNotEmpty
+                        ? "No sessions scheduled for this speaker on ${_apiDateFilters[_selectedDateIndex!]}."
+                        : "No sessions scheduled for this speaker on the selected day.",
+                    style: TextStyle(fontSize: 16, color: primaryContentColor.withOpacity(0.6)),
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+              )
+                  : ListView.builder(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                itemCount: _filteredSessions.length,
+                itemBuilder: (context, index) {
+                  final session = _filteredSessions[index];
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 8.0),
+                    child: _buildSessionCard(session, theme), // 💡 Pass theme
+                  );
+                },
+              ),
+              const SizedBox(height: 20),
+            ],
           ),
         ),
-     // ),
+      ),
     );
   }
 
-  Widget _buildDateButton(String date, int index) {
+  // 💡 Updated to accept theme
+  Widget _buildDateButton(String date, int index, AppThemeData theme) {
     bool isSelected = _selectedDateIndex == index;
+    // Theme colors
+    final Color selectedColor = theme.primaryColor;
+    final Color unselectedColor = Colors.grey[200]!;
+
     return GestureDetector(
       onTap: () {
         _filterSessionsByDate(index);
@@ -372,13 +397,15 @@ class _DetailSpeakersScreenState extends State<DetailSpeakersScreen> {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 8),
         decoration: BoxDecoration(
-          color: isSelected ? const Color(0xff261350) : Colors.grey[200],
+          // ✅ Use theme.primaryColor
+          color: isSelected ? selectedColor : unselectedColor,
           borderRadius: BorderRadius.circular(8),
         ),
         child: Text(
           date,
           style: TextStyle(
-            color: isSelected ? Colors.white : Colors.black87,
+            // ✅ Use theme.whiteColor and theme.blackColor
+            color: isSelected ? theme.whiteColor : theme.blackColor.withOpacity(0.87),
             fontWeight: FontWeight.bold,
           ),
         ),
@@ -386,61 +413,78 @@ class _DetailSpeakersScreenState extends State<DetailSpeakersScreen> {
     );
   }
 
-  Widget _buildSessionCard(CongressClass session) {
+  // 💡 Updated to accept theme
+  Widget _buildSessionCard(ProgramSession session, AppThemeData theme) {
+    final DateFormat sessionInputFormat = DateFormat('MM/dd/yyyy h:mm a');
+    String timeRange = '';
+    String datePart = '';
+
+    // Theme color variables
+    final Color accentColor = theme.secondaryColor;
+    final Color primaryContentColor = theme.blackColor;
+
+
+    try {
+      final DateTime start = sessionInputFormat.parse(session.dateDeb);
+      final DateTime end = sessionInputFormat.parse(session.dateFin);
+      timeRange = "${DateFormat('HH:mm').format(start)} - ${DateFormat('HH:mm').format(end)}";
+      datePart = DateFormat('EEE, dd MMM yyyy', 'fr_FR').format(start);
+    } catch (_) {
+      timeRange = 'Time N/A';
+      datePart = session.dateDeb.split(' ').first;
+    }
+
+    final String tagLabel = session.type.isNotEmpty ? session.type : "Session Details";
+
     return Card(
       elevation: 3,
+      // ✅ Use theme.whiteColor as card background
+      color: theme.whiteColor,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
       child: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            if (session.tags != null && session.tags!.isNotEmpty)
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: Colors.blue.shade100,
-                  borderRadius: BorderRadius.circular(5),
-                ),
-                child: Text(
-                  session.tags!.join(" | "),
-                  style: TextStyle(
-                    color: Colors.blue.shade700,
-                    fontSize: 12,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
-            const SizedBox(height: 10),
+            // STATIC TAG/TYPE
             Container(
-              height: 120,
-              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
               decoration: BoxDecoration(
-                color: Colors.grey[200],
+                // ✅ Use a lighter version of secondary color for the tag background
+                color: accentColor.withOpacity(0.1),
                 borderRadius: BorderRadius.circular(5),
               ),
-              child: const Icon(Icons.image, size: 50, color: Colors.grey),
+              child: Text(
+                tagLabel,
+                style: TextStyle(
+                  // ✅ Use accentColor for the tag text
+                  color: accentColor,
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
             ),
+
             const SizedBox(height: 10),
             Text(
-              "${session.title} ${session.subtitle != null ? '| ${session.subtitle}' : ''}",
-              style: const TextStyle(
+              session.nom,
+              style: TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.bold,
-                color: Colors.black87,
+                color: primaryContentColor, // ✅ Use theme.blackColor
               ),
             ),
             const SizedBox(height: 5),
 
-            // ⭐ OVERFLOW FIX: Wrap the Text in Expanded
+            // Time and Date
             Row(
               children: [
                 const Icon(Icons.access_time, size: 16, color: Colors.grey),
                 const SizedBox(width: 5),
-                Expanded( // Prevents overflow when time/date strings are long
+                Expanded(
                   child: Text(
-                    "${session.time ?? ''} ${session.date != null ? '| ${session.date}' : ''}",
-                    style: const TextStyle(fontSize: 14, color: Colors.grey),
+                    "$timeRange | $datePart",
+                    style: TextStyle(fontSize: 14, color: primaryContentColor.withOpacity(0.6)),
                     overflow: TextOverflow.ellipsis,
                     maxLines: 1,
                   ),
@@ -449,53 +493,40 @@ class _DetailSpeakersScreenState extends State<DetailSpeakersScreen> {
             ),
             const SizedBox(height: 5),
 
-            // Location and Stage
-            Row(
-              children: [
-                const Icon(Icons.location_on_outlined, size: 16, color: Colors.grey),
-                const SizedBox(width: 5),
-                Expanded(
-                  child: Text(
-                    "${session.location ?? ''} ${session.stage != null ? '| ${session.stage}' : ''}",
-                    style: const TextStyle(fontSize: 14, color: Colors.grey),
-                    overflow: TextOverflow.ellipsis,
+            // Location
+            if (session.emplacement != null && session.emplacement!.isNotEmpty)
+              Row(
+                children: [
+                  const Icon(Icons.location_on_outlined, size: 16, color: Colors.grey),
+                  const SizedBox(width: 5),
+                  Expanded(
+                    child: Text(
+                      session.emplacement!,
+                      style: TextStyle(fontSize: 14, color: primaryContentColor.withOpacity(0.6)),
+                      overflow: TextOverflow.ellipsis,
+                    ),
                   ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 10),
-            if (session.speakers != null && session.speakers!.isNotEmpty)
-              Wrap(
-                spacing: 8.0,
-                runSpacing: 4.0,
-                children: session.speakers!.map((speaker) => Chip(
-                  label: Text(speaker.name),
-                  // NOTE: Speaker image in session chip uses AssetImage as a simple approach
-                  // but should be updated if session speakers have dynamic images.
-                  avatar: CircleAvatar(
-                    backgroundImage: AssetImage(speaker.imageUrl.startsWith('assets') ? speaker.imageUrl : 'assets/placeholder.png'),
-                  ),
-                  backgroundColor: Colors.grey[100],
-                )).toList(),
+                ],
               ),
-            if (session.isSessionOver)
-              const Padding(
-                padding: EdgeInsets.only(top: 8.0),
-                child: Text(
-                  "Session is over",
-                  style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold),
-                ),
-              ),
+
             const SizedBox(height: 10),
+
             Align(
               alignment: Alignment.bottomRight,
               child: OutlinedButton(
                 onPressed: () {
-                  // Navigate to DetailCongressScreen or show session details
+                  // Navigate to DetailSessionScreen
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => DetailSessionScreen(session: session),
+                    ),
+                  );
                 },
                 style: OutlinedButton.styleFrom(
-                  foregroundColor: Colors.blue.shade700,
-                  side: BorderSide(color: Colors.blue.shade700),
+                  // ✅ Use accentColor
+                  foregroundColor: accentColor,
+                  side: BorderSide(color: accentColor),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                 ),

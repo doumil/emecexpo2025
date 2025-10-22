@@ -1,39 +1,22 @@
-// lib/api_service/speaker_api_service.dart
+// lib/api_services/speaker_api_service.dart
 
 import 'dart:convert';
 import 'package:http/http.dart' as http;
-import 'package:flutter/foundation.dart';
-import '../model/speakers_model.dart'; // Ensure correct path
+import '../model/speakers_model.dart'; // Import the new model
 
 class SpeakerApiService {
-  static const String _apiUrl = 'https://buzzevents.co/api/edition/1118/speakers';
+  // Use the exact URL provided by the user
+  final String baseUrl = "https://buzzevents.co/api/edition/654/speakers-with-sessions";
 
-  Future<List<Speakers>> fetchSpeakers() async {
-    try {
-      final response = await http.get(Uri.parse(_apiUrl));
+  Future<SpeakersDataModel> fetchSpeakersWithSessions() async {
+    final response = await http.get(Uri.parse(baseUrl));
 
-      if (response.statusCode == 200) {
-        final Map<String, dynamic> jsonResponse = json.decode(response.body);
-        final List<dynamic>? data = jsonResponse['data'];
-
-        if (data == null) {
-          throw const FormatException("API response is missing the 'data' array.");
-        }
-
-        // Map the JSON list using the model's factory
-        List<Speakers> fetchedSpeakers = data.map((item) {
-          // No need for image prep-processing here if done in the model
-          return Speakers.fromJson(item as Map<String, dynamic>);
-        }).toList();
-
-        return fetchedSpeakers;
-      } else {
-        throw Exception('Failed to load speakers. Status code: ${response.statusCode}');
-      }
-    } catch (e) {
-      debugPrint('Error in fetchSpeakers: $e');
-      // Re-throw a user-friendly exception
-      throw Exception('Network error: Could not fetch speakers data.');
+    if (response.statusCode == 200) {
+      final jsonResponse = json.decode(response.body);
+      // Use the updated SpeakersDataModel to parse the full response
+      return SpeakersDataModel.fromJson(jsonResponse);
+    } else {
+      throw Exception('Failed to load speakers data. Status Code: ${response.statusCode}');
     }
   }
 }
