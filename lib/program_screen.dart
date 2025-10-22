@@ -10,7 +10,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 // Import the new files
 import '../api_services/program_api_service.dart';
-import '../model/program_model.dart';
+import '../model/program_model.dart'; // Must be the updated version
 
 // Assuming these are defined elsewhere
 import '../providers/theme_provider.dart';
@@ -39,9 +39,6 @@ class _ProgramScreenState extends State<ProgramScreen> {
 
   List<ProgramItemModel> filteredAgendaItems = [];
   bool isLoading = true;
-
-  // 🚫 REMOVED: String _appBarDayTitle = "Program";
-  // We will now hardcode "Program" in the AppBar.
 
   @override
   void initState() {
@@ -76,7 +73,6 @@ class _ProgramScreenState extends State<ProgramScreen> {
 
       if (uniqueDays.isNotEmpty) {
         _selectedDayIndex = 0;
-        // 🚫 REMOVED: Logic that set _appBarDayTitle to a number is gone.
       }
 
       _applyFilters();
@@ -133,9 +129,13 @@ class _ProgramScreenState extends State<ProgramScreen> {
     if (_searchQuery.isNotEmpty) {
       categoryFilteredItems = categoryFilteredItems.where((item) {
         final query = _searchQuery.toLowerCase();
+        // 💡 FIX: Include speakers in the search filter using the new speakers list
+        final speakerNames = item.speakers.map((s) => s.fullName.toLowerCase()).join(' ');
+
         return item.title.toLowerCase().contains(query) ||
             item.description.toLowerCase().contains(query) ||
-            item.location.toLowerCase().contains(query);
+            item.location.toLowerCase().contains(query) ||
+            speakerNames.contains(query);
       }).toList();
     }
 
@@ -378,10 +378,17 @@ class _ProgramScreenState extends State<ProgramScreen> {
       print("Error formatting time for card: $e");
     }
 
+    // 💡 FIX: Generate speaker names from the list
+    String speakerNames = item.speakers.map((s) => s.fullName).join(', ');
+
     String subtitle = item.location;
-    if (item.speaker != null && item.speaker!.isNotEmpty) {
-      subtitle = '${item.speaker} | ${item.location}';
+    if (speakerNames.isNotEmpty) {
+      subtitle = '$speakerNames | ${item.location}';
+    } else if (item.location == 'Not specified' || item.location.isEmpty) {
+      // Fallback if neither speaker nor location is helpful
+      subtitle = "Details non disponibles";
     }
+
 
     return Card(
       color: theme.whiteColor,
@@ -390,7 +397,8 @@ class _ProgramScreenState extends State<ProgramScreen> {
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12.0)),
       child: InkWell(
         onTap: () {
-          // Navigate to the new DetailProgramScreen
+          // This navigation correctly passes the session item to the DetailProgramScreen
+          // which is responsible for displaying the detailed speaker information.
           Navigator.push(
             context,
             MaterialPageRoute(
@@ -437,6 +445,7 @@ class _ProgramScreenState extends State<ProgramScreen> {
                       overflow: TextOverflow.ellipsis,
                     ),
                     const SizedBox(height: 4),
+                    // 💡 FIX: Display the new subtitle generated from speaker list and location
                     Text(
                       subtitle,
                       style: TextStyle(

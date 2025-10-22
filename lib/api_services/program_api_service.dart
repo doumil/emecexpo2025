@@ -16,11 +16,14 @@ class ProgramApiService {
       if (response.statusCode == 200) {
         final Map<String, dynamic> jsonResponse = json.decode(response.body) as Map<String, dynamic>;
 
-        if (jsonResponse['success'] == true && jsonResponse['data'] != null) {
-          // Pass the 'data' object directly to the model's fromJson
-          return ProgramDataModel.fromJson(jsonResponse['data'] as Map<String, dynamic>);
+        if (jsonResponse['success'] == true && jsonResponse['data'] is Map<String, dynamic>) {
+          // 💡 Safety Enhancement: Ensure 'data' is passed as a Map<String, dynamic>
+          final Map<String, dynamic> data = jsonResponse['data'] as Map<String, dynamic>;
+
+          return ProgramDataModel.fromJson(data);
         } else {
-          throw Exception('API response succeeded but program data is missing or invalid.');
+          // Handle cases where 'success' is false or 'data' is missing/not a map
+          throw Exception('API response succeeded but program data is missing or invalid. Success: ${jsonResponse['success']}, Data Type: ${jsonResponse['data']?.runtimeType}');
         }
       } else {
         throw Exception('Failed to load program details. Status Code: ${response.statusCode}');
@@ -28,6 +31,7 @@ class ProgramApiService {
     } catch (e) {
       // For debugging, print the exact error
       print("Program API Error: $e");
+      // Re-throw a more user-friendly error message
       throw Exception('Network or parsing error fetching program: $e');
     }
   }

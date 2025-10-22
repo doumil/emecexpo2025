@@ -1,10 +1,9 @@
 // lib/my_profile_screen.dart
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart'; // 💡 Import Provider
-import 'package:emecexpo/providers/theme_provider.dart'; // 💡 Import your ThemeProvider
+import 'package:provider/provider.dart';
+import 'package:emecexpo/providers/theme_provider.dart';
 import 'package:emecexpo/model/user_model.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:emecexpo/login_screen.dart';
 
 import 'main.dart';
@@ -45,9 +44,82 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
     );
   }
 
+  // --- Helper Widget: Data Card with Icon ---
+  Widget _buildInfoCard({
+    required AppThemeData theme,
+    required IconData icon,
+    required String label,
+    required String value,
+  }) {
+    final Color primaryContentColor = theme.blackColor;
+    final Color accentContentColor = theme.secondaryColor;
+
+    return Container(
+      padding: const EdgeInsets.all(12),
+      margin: const EdgeInsets.only(bottom: 15),
+      decoration: BoxDecoration(
+          color: Colors.grey[100], // Consistent light background
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: Colors.grey.shade300)
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, size: 24, color: accentContentColor),
+          const SizedBox(width: 15),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                    color: primaryContentColor.withOpacity(0.7),
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  value.isNotEmpty ? value : 'N/A',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: primaryContentColor,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // --- Helper Widget: Interest Tag (Commented out, but kept for reference) ---
+  /*
+  Widget _buildInterestTag(String interest, AppThemeData theme) {
+    return Chip(
+      label: Text(
+        interest,
+        style: TextStyle(
+          color: theme.primaryColor,
+          fontSize: 13,
+          fontWeight: FontWeight.w500,
+        ),
+      ),
+      backgroundColor: theme.primaryColor.withOpacity(0.1),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(8.0),
+        side: BorderSide(color: theme.primaryColor.withOpacity(0.3), width: 0.5),
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: 4.0, vertical: 2.0),
+    );
+  }
+  */
+
   @override
   Widget build(BuildContext context) {
-    // 💡 Access the theme provider and get the current theme.
     final themeProvider = Provider.of<ThemeProvider>(context);
     final theme = themeProvider.currentTheme;
 
@@ -56,7 +128,11 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
         : null;
 
     final String initials = _getInitials(_currentUser);
+    final String fullName = _currentUser.name ?? '${_currentUser.prenom ?? ''} ${_currentUser.nom ?? ''}'.trim();
+    final String location = '${_currentUser.city ?? 'N/A'}, ${_currentUser.country ?? 'N/A'}';
 
+    // Commented out the interests list
+    /*
     final List<String> interests = [
       'Networking & Infrastructure',
       'Mobile Development',
@@ -64,14 +140,14 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
       'AI & Machine Learning',
       'Cloud Computing',
     ];
+    */
 
     return Scaffold(
-      // ✅ Use a theme color for the scaffold background.
-      backgroundColor: theme.whiteColor,
+      backgroundColor: Colors.grey[50],
       appBar: AppBar(
         title: const Text('My Profile'),
         leading: IconButton(
-          icon: Icon(Icons.arrow_back_ios, color: theme.whiteColor), // Assuming a light icon on a colored AppBar
+          icon: Icon(Icons.arrow_back_ios, color: theme.whiteColor),
           onPressed: () async{
             prefs = await SharedPreferences.getInstance();
             prefs.setString("Data", "99");
@@ -79,7 +155,6 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
                 context, MaterialPageRoute(builder: (context) => WelcomPage()));
           },
         ),
-        // ✅ Use theme colors for the AppBar.
         backgroundColor: theme.primaryColor,
         foregroundColor: theme.whiteColor,
         centerTitle: true,
@@ -92,173 +167,157 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
           ),
         ],
       ),
-      body: Stack(
-        children: [
-          // Background "Cover" Area
-          Container(
-            height: 180,
-            // ✅ Use a theme color for the background cover.
-            color: theme.blackColor.withOpacity(0.2),
-          ),
-          SingleChildScrollView(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: <Widget>[
-                const SizedBox(height: 30),
-
-                // Profile Picture/Initials section
-                Center(
-                  child: Container(
-                    width: 120,
-                    height: 120,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      // ✅ Use a theme color for the background of initials.
-                      color: profilePicUrl == null ? theme.secondaryColor : Colors.transparent,
-                      // ✅ Use a theme color for the border.
-                      border: Border.all(color: theme.whiteColor, width: 4),
-                      boxShadow: [
-                        BoxShadow(
-                          color: theme.blackColor.withOpacity(0.2),
-                          spreadRadius: 2,
-                          blurRadius: 5,
-                          offset: const Offset(0, 3),
+      body: SingleChildScrollView(
+        child: Padding(
+          padding: const EdgeInsets.all(20.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: <Widget>[
+              // --- 1. Header Card (Avatar, Name, Job) ---
+              Container(
+                padding: const EdgeInsets.all(20),
+                margin: const EdgeInsets.only(bottom: 25),
+                decoration: BoxDecoration(
+                  color: theme.whiteColor,
+                  borderRadius: BorderRadius.circular(15),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.grey.withOpacity(0.1),
+                      spreadRadius: 2,
+                      blurRadius: 5,
+                      offset: const Offset(0, 3),
+                    ),
+                  ],
+                ),
+                child: Column(
+                  children: [
+                    // Profile Picture/Initials
+                    Container(
+                      width: 100,
+                      height: 100,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: profilePicUrl == null ? theme.secondaryColor.withOpacity(0.8) : Colors.transparent,
+                        border: Border.all(color: theme.primaryColor.withOpacity(0.5), width: 2),
+                        image: profilePicUrl != null
+                            ? DecorationImage(
+                          image: NetworkImage(profilePicUrl),
+                          fit: BoxFit.cover,
+                        )
+                            : null,
+                      ),
+                      child: profilePicUrl == null
+                          ? Center(
+                        child: Text(
+                          initials.isEmpty ? '?' : initials,
+                          style: TextStyle(
+                            color: theme.whiteColor,
+                            fontSize: 36,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
-                      ],
-                      image: profilePicUrl != null
-                          ? DecorationImage(
-                        image: NetworkImage(profilePicUrl),
-                        fit: BoxFit.cover,
                       )
                           : null,
                     ),
-                    child: profilePicUrl == null
-                        ? Center(
-                      child: Text(
-                        initials.isEmpty ? '?' : initials,
-                        style: TextStyle(
-                          // ✅ Use a theme color for the initials text.
-                          color: theme.whiteColor,
-                          fontSize: 40,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    )
-                        : null,
-                  ),
-                ),
-                const SizedBox(height: 20),
+                    const SizedBox(height: 15),
 
-                // User Name
-                Center(
-                  child: Text(
-                    _currentUser.name ?? '${_currentUser.prenom ?? ''} ${_currentUser.nom ?? ''}'.trim(),
-                    style: TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                      // ✅ Use a theme color for the name text.
-                      color: theme.blackColor.withOpacity(0.87),
+                    // Full Name
+                    Text(
+                      fullName,
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: 26,
+                        fontWeight: FontWeight.bold,
+                        color: theme.blackColor,
+                      ),
                     ),
-                  ),
-                ),
-                const SizedBox(height: 10),
+                    const SizedBox(height: 5),
 
-                // User Details (Role, Company, Location)
-                Center(
-                  child: Column(
-                    children: <Widget>[
-                      Text(
-                        _currentUser.jobtitle ?? 'No job title',
-                        style: TextStyle(
-                          fontSize: 16,
-                          // ✅ Use a theme color for the job title.
-                          color: theme.blackColor.withOpacity(0.6),
-                        ),
+                    // Job Title
+                    Text(
+                      _currentUser.jobtitle ?? 'Attendee',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: 18,
+                        color: theme.secondaryColor,
+                        fontWeight: FontWeight.w600,
                       ),
-                      Text(
-                        _currentUser.company ?? 'No company',
-                        style: TextStyle(
-                          fontSize: 16,
-                          // ✅ Use a theme color for the company text.
-                          color: theme.blackColor.withOpacity(0.6),
-                        ),
-                      ),
-                      Text(
-                        '${_currentUser.city ?? 'N/A'}, ${_currentUser.country ?? 'N/A'}',
-                        style: TextStyle(
-                          fontSize: 16,
-                          // ✅ Use a theme color for the location text.
-                          color: theme.blackColor.withOpacity(0.6),
-                        ),
-                      ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 30),
+              ),
 
-                // My Interests Section
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 20.0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: <Widget>[
-                      Text(
-                        'My Interests',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                          // ✅ Use a theme color for the heading.
-                          color: theme.blackColor.withOpacity(0.87),
-                        ),
-                      ),
-                      const SizedBox(height: 10),
-                      Wrap(
-                        spacing: 8.0,
-                        runSpacing: 4.0,
-                        children: interests.map((interest) {
-                          return _buildInterestTag(interest, theme); // Pass theme
-                        }).toList(),
-                      ),
-                    ],
-                  ),
+              // --- 2. Contact & Location Section ---
+              Text(
+                'Contact Information',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: theme.blackColor.withOpacity(0.87),
                 ),
-                const SizedBox(height: 80),
-              ],
-            ),
+              ),
+              const Divider(color: Colors.grey),
+
+              _buildInfoCard(
+                theme: theme,
+                icon: Icons.business,
+                label: 'Company',
+                value: _currentUser.company ?? 'N/A',
+              ),
+              _buildInfoCard(
+                theme: theme,
+                icon: Icons.location_on_outlined,
+                label: 'Location',
+                value: location,
+              ),
+              _buildInfoCard(
+                theme: theme,
+                icon: Icons.email_outlined,
+                label: 'Email',
+                value: _currentUser.email ?? 'N/A',
+              ),
+              const SizedBox(height: 20),
+
+              // --- 3. My Interests Section (Commented Out) ---
+              /*
+              Text(
+                'My Interests',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: theme.blackColor.withOpacity(0.87),
+                ),
+              ),
+              const Divider(color: Colors.grey),
+              Wrap(
+                spacing: 8.0,
+                runSpacing: 8.0,
+                children: interests.map((interest) {
+                  return _buildInterestTag(interest, theme);
+                }).toList(),
+              ),
+              */
+
+              const SizedBox(height: 80),
+            ],
           ),
-        ],
+        ),
       ),
+      // --- Floating Action Button (Edit) Commented Out ---
+      /*
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Edit Profile functionality coming soon!')),
           );
         },
-        // ✅ Use theme colors for the FAB.
         backgroundColor: theme.secondaryColor,
         foregroundColor: theme.whiteColor,
         icon: const Icon(Icons.edit),
         label: const Text('Edit'),
       ),
       floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
-    );
-  }
-
-  // Helper widget for interest tags now takes a theme argument.
-  Widget _buildInterestTag(String interest, AppThemeData theme) {
-    return Chip(
-      label: Text(
-        interest,
-        style: TextStyle(
-          // ✅ Use a theme color for the chip text.
-          color: theme.blackColor.withOpacity(0.87),
-        ),
-      ),
-      // ✅ Use a theme color for the chip background.
-      backgroundColor: theme.blackColor.withOpacity(0.1),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(20.0),
-      ),
+      */
     );
   }
 }
