@@ -7,6 +7,7 @@ import 'package:emecexpo/providers/theme_provider.dart'; // 💡 Import your The
 import 'package:emecexpo/model/user_model.dart';
 import 'package:emecexpo/my_profile_screen.dart';
 import 'package:emecexpo/main.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'api_services/auth_api_service.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -17,11 +18,47 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
+
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
   bool _isLoading = false;
   bool _isPasswordVisible = false;
+  Future<void> _launchUrlRegister(String address) async {
+    // URL-encode the address to ensure it works correctly in map apps
+    final encodedAddress = Uri.encodeComponent(address);
+
+    // Use Google Maps query as a reliable universal method
+    final urlRegister = 'https://www.emecexpo.com/tickets/';
+    final Uri url = Uri.parse(urlRegister);
+    final urlForget = 'https://buzzevents.co/password/reset';
+    final Uri url1 = Uri.parse(urlForget);
+
+    if (!await launchUrl(url, mode: LaunchMode.externalApplication)) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Could not launch ticket .')),
+        );
+      }
+      throw Exception('Could not launch $url');
+    }
+  }
+  Future<void> _launchUrlReset(String address) async {
+    // URL-encode the address to ensure it works correctly in map apps
+    final encodedAddress = Uri.encodeComponent(address);
+    // Use Google Maps query as a reliable universal method
+    final urlRegister = 'https://buzzevents.co/password/reset';
+    final Uri url = Uri.parse(urlRegister);
+
+    if (!await launchUrl(url, mode: LaunchMode.externalApplication)) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Could not launch ticket .')),
+        );
+      }
+      throw Exception('Could not launch $url');
+    }
+  }
 
   Future<void> _login() async {
     if (!_formKey.currentState!.validate()) {
@@ -235,9 +272,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
                 const SizedBox(height: 16.0),
                 TextButton(
-                  onPressed: () {
-                    print('Forgot Password?');
-                  },
+                  onPressed: () => _launchUrlReset(''),
                   child: Text(
                     'Forgot Password?',
                     // ✅ Use a color from the theme for the accent text.
@@ -245,9 +280,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                 ),
                 TextButton(
-                  onPressed: () {
-                    print('Register an account');
-                  },
+                  onPressed: () => _launchUrlRegister(''),
                   child: Text(
                     'Don\'t have an account? Register',
                     // ✅ Use a color from the theme for the accent text.
