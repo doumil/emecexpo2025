@@ -2,19 +2,18 @@
 
 import 'dart:convert';
 import 'package:animate_do/animate_do.dart';
-// NOTE: Assuming these imports exist and are correct
-import 'package:emecexpo/services/onwillpop_services.dart';
-import 'package:emecexpo/constants.dart';
-import 'package:emecexpo/model/user_model.dart';
-import 'package:emecexpo/login_screen.dart';
-// Your providers
-import 'package:emecexpo/providers/menu_provider.dart';
-import 'package:emecexpo/providers/theme_provider.dart';
-
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:provider/provider.dart';
 
+// NOTE: Assuming these imports exist and are correct
+import 'package:emecexpo/services/onwillpop_services.dart';
+import 'package:emecexpo/constants.dart'; // Should contain DrawerSections enum
+import 'package:emecexpo/model/user_model.dart';
+import 'package:emecexpo/login_screen.dart';
+import 'package:emecexpo/providers/menu_provider.dart';
+import 'package:emecexpo/providers/theme_provider.dart';
+import 'model/app_theme_data.dart'; // Assuming AppThemeData is defined here or accessible
 
 // --- HELPER CLASS FOR MENU ITEMS ---
 class MenuItem {
@@ -34,7 +33,7 @@ class MenuItem {
 
 class HomeScreen extends StatefulWidget {
   final User? user;
-  final OnNavigateCallback onNavigate;
+  final OnNavigateCallback onNavigate; // Assumed definition: typedef void OnNavigateCallback(DrawerSections section);
 
   const HomeScreen({Key? key, this.user, required this.onNavigate})
       : super(key: key);
@@ -45,6 +44,7 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   User? _loggedInUser;
+  // Initialize prefs as late, it will be set in _initializeUserAndToken
   late SharedPreferences prefs;
 
   static const String _bannerImageUrl =
@@ -59,6 +59,7 @@ class _HomeScreenState extends State<HomeScreen> {
     });
   }
 
+  // Helper to initialize SharedPreferences and user data
   _initializeUserAndToken() async {
     prefs = await SharedPreferences.getInstance();
     User? userFromWidget = widget.user;
@@ -88,13 +89,60 @@ class _HomeScreenState extends State<HomeScreen> {
     });
   }
 
-  Future<void> _logout() async {
+  // 💡 CORRECTED: Actual logout logic. We call getInstance() to ensure prefs is initialized.
+  Future<void> _logoutConfirmed() async {
+    // Re-initialize prefs to guarantee it's not null/uninitialized (Fixes the syntax issue)
+    prefs = await SharedPreferences.getInstance();
+
+    // Perform the logout actions
     await prefs.remove('authToken');
     await prefs.remove('currentUserJson');
 
+    if (!mounted) return;
     Navigator.of(context).pushAndRemoveUntil(
       MaterialPageRoute(builder: (context) => const LoginScreen()),
           (Route<dynamic> route) => false,
+    );
+  }
+
+  // 💡 NEW: Function to show the confirmation dialog
+  Future<void> _showLogoutConfirmationDialog(BuildContext context, AppThemeData theme) async {
+    return showDialog<void>(
+      context: context,
+      barrierDismissible: false, // user must tap button!
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Confirm Logout'),
+          content: const SingleChildScrollView(
+            child: ListBody(
+              children: <Widget>[
+                Text('Are you sure you want to log out of your account?'),
+              ],
+            ),
+          ),
+          actions: <Widget>[
+            TextButton(
+              child: Text(
+                'Cancel',
+                style: TextStyle(color: theme.primaryColor),
+              ),
+              onPressed: () {
+                Navigator.of(context).pop(); // Dismiss the dialog
+              },
+            ),
+            TextButton(
+              child: Text(
+                'Logout',
+                style: TextStyle(color: theme.secondaryColor, fontWeight: FontWeight.bold),
+              ),
+              onPressed: () {
+                Navigator.of(context).pop(); // Dismiss the dialog first
+                _logoutConfirmed(); // Execute the actual logout logic
+              },
+            ),
+          ],
+        );
+      },
     );
   }
 
@@ -393,7 +441,7 @@ class _HomeScreenState extends State<HomeScreen> {
             appBar: AppBar(
               title: Center(
                 child: Text(
-                  'Welcome, ${_loggedInUser?.name ?? 'Guest'}!',
+                  'Welcome, ${_loggedInUser?.prenom ?? 'Guest'}!',
                   style: TextStyle(
                     fontSize: 24,
                     fontWeight: FontWeight.bold,
@@ -409,7 +457,10 @@ class _HomeScreenState extends State<HomeScreen> {
                     Icons.logout,
                     color: theme.whiteColor,
                   ),
-                  onPressed: _logout,
+                  onPressed: () {
+                    // 💡 Call the confirmation dialog
+                    _showLogoutConfirmationDialog(context, theme);
+                  },
                   tooltip: 'Logout',
                 ),
               ],

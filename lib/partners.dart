@@ -1,19 +1,20 @@
 // lib/partners_screen.dart
+
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:animate_do/animate_do.dart';
 import 'package:provider/provider.dart';
-import 'package:flutter_spinkit/flutter_spinkit.dart'; // 💡 For loading indicator
-import 'package:emecexpo/providers/theme_provider.dart';
-// import 'package:emecexpo/sponsors/partnersData.dart'; // ❌ REMOVE STATIC DATA IMPORT
+import 'package:flutter_spinkit/flutter_spinkit.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 
-// 💡 NEW API/MODEL IMPORTS
-import 'package:emecexpo/model/partner_model.dart';
-import 'package:emecexpo/api_services/partner_api_service.dart';
+import 'package:emecexpo/providers/theme_provider.dart';
+import 'package:emecexpo/model/exhibitors_model.dart';
+import 'package:emecexpo/api_services/exhibitor_api_service.dart';
 import 'package:emecexpo/model/app_theme_data.dart';
 
-import 'main.dart';
+import 'details/DetailExhibitors.dart';
+import 'main.dart'; // Assuming this imports WelcomPage
 
 class PartnersScreen extends StatefulWidget {
   const PartnersScreen({Key? key}) : super(key: key);
@@ -24,14 +25,14 @@ class PartnersScreen extends StatefulWidget {
 
 class _PartnersScreenState extends State<PartnersScreen> {
   late SharedPreferences prefs;
-  // 💡 Change to list of PartnerClass
-  List<PartnerClass> _partners = [];
-
-  // 💡 NEW Service instance
-  final PartnerApiService _partnerApiService = PartnerApiService();
+  List<ExhibitorsClass> _partners = [];
+  final ExhibitorApiService _exhibitorApiService = ExhibitorApiService();
 
   bool _isLoading = true;
-  bool _hasError = false; // Flag to indicate a fetch error
+  bool _hasError = false;
+
+  // The fixed color for the item borders
+  final Color _partnerColor = Colors.red.shade700;
 
   @override
   void initState() {
@@ -39,7 +40,6 @@ class _PartnersScreenState extends State<PartnersScreen> {
     _loadPartnersData();
   }
 
-  // 💡 Updated to fetch data from API
   Future<void> _loadPartnersData() async {
     setState(() {
       _isLoading = true;
@@ -47,9 +47,16 @@ class _PartnersScreenState extends State<PartnersScreen> {
     });
 
     try {
-      final List<PartnerClass> fetchedPartners = await _partnerApiService.getPartners();
+      final List<ExhibitorsClass> allExhibitors = await _exhibitorApiService.getExhibitors();
+
+      // Filter for exhibitors with expositionType 'partenaire'
+      final List<ExhibitorsClass> fetchedPartners = allExhibitors
+          .where((e) => e.expositionType?.toLowerCase() == 'partenaire')
+          .toList();
+
       setState(() {
         _partners = fetchedPartners;
+        _partners.sort((a, b) => a.title.compareTo(b.title));
         _isLoading = false;
         _hasError = false;
       });
@@ -58,7 +65,7 @@ class _PartnersScreenState extends State<PartnersScreen> {
       setState(() {
         _isLoading = false;
         _hasError = true;
-        _partners = []; // Ensure list is empty on error
+        _partners = [];
       });
     }
   }
@@ -88,10 +95,7 @@ class _PartnersScreenState extends State<PartnersScreen> {
     final theme = Provider.of<ThemeProvider>(context).currentTheme;
 
     return
-      //WillPopScope(
-      //onWillPop: _onWillPop,
-      //child:
-    Scaffold(
+      Scaffold(
         backgroundColor: theme.whiteColor,
         appBar: AppBar(
           backgroundColor: theme.primaryColor,
@@ -101,7 +105,7 @@ class _PartnersScreenState extends State<PartnersScreen> {
             style: TextStyle(color: theme.whiteColor, fontWeight: FontWeight.bold),
           ),
           leading: IconButton(
-            icon: Icon(Icons.arrow_back_ios, color: theme.whiteColor), // Assuming a light icon on a colored AppBar
+            icon: Icon(Icons.arrow_back_ios, color: theme.whiteColor),
             onPressed: () async{
               prefs = await SharedPreferences.getInstance();
               prefs.setString("Data", "99");
@@ -110,30 +114,12 @@ class _PartnersScreenState extends State<PartnersScreen> {
             },
           ),
           centerTitle: true,
-          bottom: PreferredSize(
-            preferredSize: const Size.fromHeight(50.0),
-            child: Container(
-              // This remains hardcoded as it represents a specific banner color
-              color: Colors.red,
-              height: 50.0,
-              alignment: Alignment.center,
-              child: Text(
-                'INSTITUTIONAL PARTNERS',
-                style: TextStyle(
-                  color: theme.whiteColor,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 18.0,
-                ),
-              ),
-            ),
-          ),
         ),
         body: FadeInDown(
           duration: const Duration(milliseconds: 500),
           child: _buildBodyContent(theme),
         ),
-      //),
-    );
+      );
   }
 
   Widget _buildBodyContent(AppThemeData theme) {
@@ -146,7 +132,7 @@ class _PartnersScreenState extends State<PartnersScreen> {
       );
     }
 
-    // 💡 Handle Error/Empty State
+    // Handle Error/Empty State
     if (_hasError || _partners.isEmpty) {
       return Center(
         child: Column(
@@ -174,13 +160,13 @@ class _PartnersScreenState extends State<PartnersScreen> {
       );
     }
 
-    // 💡 Display Partners
+    // Display Partners with updated design
     return GridView.builder(
-      padding: const EdgeInsets.all(10.0),
+      padding: const EdgeInsets.all(15.0),
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: 2,
-        crossAxisSpacing: 10.0,
-        mainAxisSpacing: 10.0,
+        crossAxisSpacing: 15.0,
+        mainAxisSpacing: 15.0,
         childAspectRatio: 1.2,
       ),
       itemCount: _partners.length,
@@ -190,28 +176,56 @@ class _PartnersScreenState extends State<PartnersScreen> {
     );
   }
 
-  // 💡 Updated to accept PartnerClass object
-  Widget _buildPartnerGridItem(PartnerClass partner, AppThemeData theme) {
-    return Card(
-      color: theme.whiteColor,
-      elevation: 3.0,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(10.0),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(8.0),
-        child: Center(
-          // 💡 Use Image.network for API image URL
-          child: Image.network(
-            partner.imageUrl, // Use the image URL from the PartnerClass
-            fit: BoxFit.contain,
-            errorBuilder: (context, error, stackTrace) {
-              return Icon(
-                Icons.broken_image,
-                color: theme.redColor, // Use theme's red color for broken image
-                size: 50,
-              );
-            },
+  // Widget for a single partner item with the flat, bordered design and GestureDetector
+  Widget _buildPartnerGridItem(ExhibitorsClass partner, AppThemeData theme) {
+    return GestureDetector( // 🎯 WRAP with GestureDetector
+      onTap: () {
+        // 🎯 CORRECT NAVIGATION: Passing the required 'exhibitorId' using the assumed correct field 'id'
+        Navigator.push(
+            context,
+            MaterialPageRoute(
+                builder: (context) => DetailExhibitorsScreen(exhibitorId: partner.id) // ⬅️ Corrected to use .id
+            )
+        );
+      },
+      child: Container(
+        decoration: BoxDecoration(
+          color: theme.whiteColor,
+          borderRadius: BorderRadius.circular(12.0),
+          border: Border.all(
+            color: _partnerColor.withOpacity(0.5),
+            width: 2.0,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.grey.withOpacity(0.1),
+              spreadRadius: 1,
+              blurRadius: 3,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(10.0),
+          child: Center(
+            child: partner.image.isNotEmpty && (partner.image.startsWith('http') || partner.image.startsWith('https'))
+                ? CachedNetworkImage(
+              imageUrl: partner.image,
+              fit: BoxFit.contain,
+              placeholder: (context, url) => Center(child: CircularProgressIndicator(strokeWidth: 2, color: theme.secondaryColor)),
+              errorWidget: (context, url, error) {
+                return Icon(
+                  Icons.broken_image,
+                  color: Colors.grey,
+                  size: 50,
+                );
+              },
+            )
+                : Icon(
+              Icons.business,
+              color: Colors.grey,
+              size: 50,
+            ),
           ),
         ),
       ),

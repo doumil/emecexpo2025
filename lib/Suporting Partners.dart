@@ -1,25 +1,28 @@
 // lib/supporting_p_screen.dart
+
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:animate_do/animate_do.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_spinkit/flutter_spinkit.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 
-// --- New Imports for API/Theme ---
+
+// --- Updated Imports to use Exhibitors API ---
 import 'package:emecexpo/providers/theme_provider.dart';
-import 'package:emecexpo/api_services/sponsor_api_service.dart';
-import 'package:emecexpo/model/sponsor_model.dart';
+import 'package:emecexpo/api_services/exhibitor_api_service.dart';
+import 'package:emecexpo/model/exhibitors_model.dart';
 import 'package:emecexpo/model/app_theme_data.dart';
 
-import 'main.dart'; // Assuming this defines AppThemeData
-// ----------------------------------
+import 'details/DetailExhibitors.dart';
+import 'main.dart';
 
 // Define a simple data structure for sponsor categories
 class SponsorCategory {
   final String title;
   final Color titleColor;
-  final List<SponsorClass> sponsors;
+  final List<ExhibitorsClass> sponsors;
 
   SponsorCategory({required this.title, required this.titleColor, required this.sponsors});
 }
@@ -34,18 +37,34 @@ class SupportingPScreen extends StatefulWidget {
 class _SupportingPScreenState extends State<SupportingPScreen> {
   late SharedPreferences prefs;
   List<SponsorCategory> _sponsorCategories = [];
-  final SponsorApiService _sponsorApiService = SponsorApiService();
+  final ExhibitorApiService _exhibitorApiService = ExhibitorApiService();
   bool _isLoading = true;
   bool _hasError = false;
 
-  // --- Hardcoded Category Definitions for Grouping ---
-  // Note: These colors should ideally be dynamically managed, but for now, they are static.
+  // --- Category Definitions with correct Colors ---
   final Map<String, Color> _categoryDefinitions = {
-    "Platinum Sponsors": const Color(0xFFA91DBE),
-    "Gold Sponsors": const Color(0xFFA91DBE),
-    "SPONSOR BRONZE": const Color(0xFFA91DBE),
+    "Diamond Sponsors": const Color(0xff00c1c1),  // Aqua/Cyan
+    "Platinum Sponsors": Colors.grey.shade600,    // Grey
+    "Gold Sponsors": const Color(0xffCE8946),     // Gold Color
+    "Bronze Sponsors": const Color(0xffceb346),   // Bronze Color
     "Strategic Partner": const Color(0xFFA91DBE),
   };
+
+  // Helper to determine sort rank for sponsors
+  int _getSponsorRank(String? type) {
+    switch (type?.toLowerCase()?.trim()) {
+      case 'diamond':
+        return 1;
+      case 'platinum':
+        return 2;
+      case 'gold':
+        return 3;
+      case 'bronze':
+        return 4;
+      default:
+        return 99;
+    }
+  }
 
   @override
   void initState() {
@@ -57,11 +76,25 @@ class _SupportingPScreenState extends State<SupportingPScreen> {
     setState(() {
       _isLoading = true;
       _hasError = false;
+      _sponsorCategories = [];
     });
 
     try {
-      final List<SponsorClass> allSponsors = await _sponsorApiService.getSponsors();
+      // 1. Fetch all exhibitors
+      final List<ExhibitorsClass> allExhibitors = await _exhibitorApiService.getExhibitors();
+
+      // 2. FILTER: Exclude any exhibitor with expositionType == 'partenaire'
+      final List<ExhibitorsClass> nonPartnerExhibitors = allExhibitors
+          .where((e) => e.expositionType?.toLowerCase() != 'partenaire')
+          .toList();
+
+      // 3. FILTER: Get only sponsors from the non-partner list
+      final List<ExhibitorsClass> allSponsors = nonPartnerExhibitors
+          .where((e) => e.expositionType?.toLowerCase() == 'sponsor')
+          .toList();
+
       _groupSponsorsIntoCategories(allSponsors);
+
     } catch (e) {
       print("Error loading sponsor data: $e");
       setState(() {
@@ -74,35 +107,62 @@ class _SupportingPScreenState extends State<SupportingPScreen> {
     }
   }
 
-  void _groupSponsorsIntoCategories(List<SponsorClass> sponsors) {
-    Map<String, List<SponsorClass>> groupedSponsors = {};
+  void _groupSponsorsIntoCategories(List<ExhibitorsClass> sponsors) {
+    Map<String, List<ExhibitorsClass>> groupedSponsors = {};
 
-    // Initialize groups with titles from your hardcoded definitions
-    for (var key in _categoryDefinitions.keys) {
-      groupedSponsors[key] = [];
-    }
-
-    // Attempt to categorize each sponsor (Placeholder logic)
-    for (var sponsor in sponsors) {
-      String categoryKey = _categoryDefinitions.keys.firstWhere(
-            (key) => sponsor.title.toLowerCase().contains(key.toLowerCase().split(' ')[0]),
-        orElse: () => "Other",
-      );
-
-      if (categoryKey != "Other") {
-        groupedSponsors[categoryKey]!.add(sponsor);
+    // Sort sponsors by rank for consistent display order within groups
+    sponsors.sort((a, b) {
+      int aRank = _getSponsorRank(a.sponsorType);
+      int bRank = _getSponsorRank(b.sponsorType);
+      if (aRank != bRank) {
+        return aRank.compareTo(bRank);
       }
+      return a.title.compareTo(b.title); // Secondary sort by title
+    });
+
+    // Group sponsors by their type
+    for (var sponsor in sponsors) {
+      String? rawType = sponsor.sponsorType?.trim().toLowerCase();
+      String categoryTitle = "Other Sponsors";
+
+      // Determine the correct category title based on sponsorType
+      if (rawType == 'diamond') {
+        categoryTitle = "Diamond Sponsors";
+      } else if (rawType == 'platinum') {
+        categoryTitle = "Platinum Sponsors";
+      } else if (rawType == 'gold') {
+        categoryTitle = "Gold Sponsors";
+      } else if (rawType == 'bronze') {
+        categoryTitle = "Bronze Sponsors";
+      } else if (rawType != null && rawType.isNotEmpty) {
+        // Fallback for other non-standard types
+        categoryTitle = rawType.split(' ').map((word) => word[0].toUpperCase() + word.substring(1)).join(' ') + " Sponsors";
+      }
+
+      groupedSponsors.putIfAbsent(categoryTitle, () => []).add(sponsor);
     }
 
-    // Build the final list of categories, ignoring empty ones
+    // Build the final list of categories
     List<SponsorCategory> categories = groupedSponsors.entries
         .where((entry) => entry.value.isNotEmpty)
-        .map((entry) => SponsorCategory(
-      title: entry.key,
-      titleColor: _categoryDefinitions[entry.key]!,
-      sponsors: entry.value,
-    ))
+        .map((entry) {
+      // Get the color, falling back to a default if the title isn't in the map
+      Color color = _categoryDefinitions[entry.key] ?? Colors.black;
+      return SponsorCategory(
+        title: entry.key,
+        titleColor: color,
+        sponsors: entry.value,
+      );
+    })
         .toList();
+
+    // Sort the final categories list by rank (Diamond, Platinum, Gold, Bronze...)
+    categories.sort((a, b) {
+      int aRank = _getSponsorRank(a.title.split(' ')[0]);
+      int bRank = _getSponsorRank(b.title.split(' ')[0]);
+      return aRank.compareTo(bRank);
+    });
+
 
     setState(() {
       _sponsorCategories = categories;
@@ -132,31 +192,24 @@ class _SupportingPScreenState extends State<SupportingPScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // 💡 Access the theme provider
     final themeProvider = Provider.of<ThemeProvider>(context);
     final theme = themeProvider.currentTheme;
 
     return
-      //WillPopScope(
-      //onWillPop: _onWillPop,
-      //child:
-    Scaffold(
-        // 💡 Use theme color
+      Scaffold(
         backgroundColor: theme.whiteColor,
         appBar: AppBar(
-          // 💡 Use theme color
           backgroundColor: theme.primaryColor,
           elevation: 0,
           title: Text(
-            'Supporting Partners',
+            'Sponsors',
             style: TextStyle(
-              // 💡 Use theme color
                 color: theme.whiteColor,
                 fontWeight: FontWeight.bold
             ),
           ),
           leading: IconButton(
-            icon: Icon(Icons.arrow_back_ios, color: theme.whiteColor), // Assuming a light icon on a colored AppBar
+            icon: Icon(Icons.arrow_back_ios, color: theme.whiteColor),
             onPressed: () async{
               prefs = await SharedPreferences.getInstance();
               prefs.setString("Data", "99");
@@ -170,15 +223,13 @@ class _SupportingPScreenState extends State<SupportingPScreen> {
           duration: const Duration(milliseconds: 500),
           child: _buildBody(theme),
         ),
-      //),
-    );
+      );
   }
 
   Widget _buildBody(AppThemeData theme) {
     if (_isLoading) {
       return Center(
         child: SpinKitThreeBounce(
-          // 💡 Use theme color
           color: theme.secondaryColor,
           size: 30.0,
         ),
@@ -193,7 +244,7 @@ class _SupportingPScreenState extends State<SupportingPScreen> {
             Icon(Icons.favorite_outline, color: Colors.grey, size: 50),
             const SizedBox(height: 10),
             const Text(
-              "Failed to load partners or none available.",
+              "Failed to load sponsors or none available.",
               style: TextStyle(color: Colors.grey),
             ),
             const SizedBox(height: 20),
@@ -217,39 +268,53 @@ class _SupportingPScreenState extends State<SupportingPScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: _sponsorCategories.map((category) {
+          final int itemCount = category.sponsors.length;
+
           return Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Padding(
-                padding: const EdgeInsets.symmetric(vertical: 15.0, horizontal: 5.0),
+                padding: const EdgeInsets.symmetric(vertical: 20.0, horizontal: 5.0),
                 child: Center(
                   child: Text(
                     category.title,
                     style: TextStyle(
                         fontWeight: FontWeight.bold,
-                        fontSize: 18.00,
-                        // 💡 Use primaryColor for category title if theme color is desired
-                        // Currently using hardcoded color: category.titleColor
-                        color: theme.primaryColor), // Using primaryColor for titles for consistency
+                        fontSize: 20.0,
+                        color: category.titleColor), // Color based on sponsor level
                   ),
                 ),
               ),
-              GridView.builder(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 2,
-                  crossAxisSpacing: 10.0,
-                  mainAxisSpacing: 10.0,
-                  childAspectRatio: 1.2,
+
+              // 💡 DYNAMIC LAYOUT LOGIC: Centered single item or 2-column grid
+              if (itemCount == 1)
+              // Case 1: Only one item -> Show centered
+                Center(
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10.0),
+                    // Constrain the width for centering effect (e.g., half the screen width)
+                    width: MediaQuery.of(context).size.width * 0.5,
+                    child: _buildSponsorGridItem(category.sponsors.first, theme, category.titleColor), // Pass category color
+                  ),
+                )
+              else
+              // Case 2: Two or more items -> Use the GridView (2 columns)
+                GridView.builder(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 2,
+                    crossAxisSpacing: 15.0, // Increased spacing
+                    mainAxisSpacing: 15.0, // Increased spacing
+                    childAspectRatio: 1.2,
+                  ),
+                  itemCount: itemCount,
+                  itemBuilder: (context, index) {
+                    return _buildSponsorGridItem(category.sponsors[index], theme, category.titleColor); // Pass category color
+                  },
                 ),
-                itemCount: category.sponsors.length,
-                itemBuilder: (context, index) {
-                  // Pass the SponsorClass object AND the theme data
-                  return _buildSponsorGridItem(category.sponsors[index], theme);
-                },
-              ),
-              const SizedBox(height: 20.0),
+
+              const SizedBox(height: 30.0), // Increased separation between categories
             ],
           );
         }).toList(),
@@ -257,30 +322,57 @@ class _SupportingPScreenState extends State<SupportingPScreen> {
     );
   }
 
-  // 💡 Updated to accept SponsorClass object AND AppThemeData
-  Widget _buildSponsorGridItem(SponsorClass sponsor, AppThemeData theme) {
+  // Updated widget: includes GestureDetector with direct navigation, passing exhibitorId
+  Widget _buildSponsorGridItem(ExhibitorsClass exhibitor, AppThemeData theme, Color categoryColor) {
 
-    return Card(
-      // 💡 Use theme color
-      color: theme.whiteColor,
-      elevation: 3.0,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(10.0),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(8.0),
-        child: Center(
-          child: Image.network(
-            sponsor.image,
-            fit: BoxFit.contain,
-            errorBuilder: (context, error, stackTrace) {
-              return Icon(
-                Icons.broken_image,
-                // 💡 Use theme color
-                color: theme.redColor,
-                size: 50,
-              );
-            },
+    return GestureDetector( // 🎯 WRAP with GestureDetector
+      onTap: () {
+        // 🎯 FIX APPLIED: Passing the required 'exhibitorId' using the assumed correct field 'id'
+        Navigator.push(
+            context,
+            MaterialPageRoute(
+                builder: (context) => DetailExhibitorsScreen(exhibitorId: exhibitor.id) // ⬅️ Corrected to use .id
+            )
+        );
+      },
+      child: Container(
+        decoration: BoxDecoration(
+          color: theme.whiteColor,
+          borderRadius: BorderRadius.circular(12.0),
+          border: Border.all(
+            color: categoryColor.withOpacity(0.5),
+            width: 2.0,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.grey.withOpacity(0.1),
+              spreadRadius: 1,
+              blurRadius: 3,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(10.0),
+          child: Center(
+            child: exhibitor.image.isNotEmpty && (exhibitor.image.startsWith('http') || exhibitor.image.startsWith('https'))
+                ? CachedNetworkImage(
+              imageUrl: exhibitor.image,
+              fit: BoxFit.contain,
+              placeholder: (context, url) => Center(child: CircularProgressIndicator(strokeWidth: 2, color: theme.secondaryColor)),
+              errorWidget: (context, url, error) {
+                return Icon(
+                  Icons.broken_image,
+                  color: Colors.grey,
+                  size: 50,
+                );
+              },
+            )
+                : Icon(
+              Icons.business,
+              color: Colors.grey,
+              size: 50,
+            ),
           ),
         ),
       ),

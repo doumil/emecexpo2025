@@ -533,7 +533,7 @@ class _WelcomPageState extends State<WelcomPage> {
           const Divider(color: Colors.white24, height: 20),
 
           menuItem(DrawerSections.contact, "Contact", Icons.contact_mail_outlined, currentSection == DrawerSections.contact, onNavigate),
-          menuItem(DrawerSections.getThere, "How to get there", Icons.directions_bus_outlined, currentSection == DrawerSections.getThere, onNavigate),
+          //menuItem(DrawerSections.getThere, "How to get there", Icons.directions_bus_outlined, currentSection == DrawerSections.getThere, onNavigate),
           menuItem(DrawerSections.socialM, "Social Media", FontAwesomeIcons.shareNodes, currentSection == DrawerSections.socialM, onNavigate),
           menuItem(DrawerSections.settings, "Settings", Icons.settings_outlined, currentSection == DrawerSections.settings, onNavigate),
         ],

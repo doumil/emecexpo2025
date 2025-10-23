@@ -1,84 +1,67 @@
 // lib/model/exhibitors_model.dart
 
 class ExhibitorsClass {
-  int id;
-  String title;
-  String stand; // Not directly from API, will be an empty string
-  String discriptions; // Mapped from 'bio'
-  String shortDiscriptions; // Mapped from 'bio'
-  String adress; // Mapped from 'address' (if available, or empty)
-  String siteweb; // Mapped from 'site'
-  String image; // Mapped from 'pic'
-  bool fav; // Not from API, will be false by default
-  bool star; // Not from API, will be false by default
-  bool isRecommended; // Mapped from 'valid' field in API, or false
+  final int id;
+  final String title;
+  final String stand; // Mapped from pivot.stand
+  final String adress;
+  final String shortDiscriptions; // Mapped from activite
+  final String discriptions; // Placeholder for full description (not in current API JSON)
+  final String siteweb; // Mapped from site
+  final String image; // Mapped from logo
+  bool star;
+  final bool isRecommended;
+
+  // New fields for sponsor logic
+  final String? expositionType; // Mapped from exposition_type
+  final String? sponsorType; // Mapped from sponsor_type
 
   ExhibitorsClass(
       this.id,
       this.title,
       this.stand,
-      this.shortDiscriptions,
       this.adress,
+      this.shortDiscriptions,
       this.discriptions,
       this.siteweb,
       this.image,
-      this.fav,
       this.star,
-      {this.isRecommended = false});
+      this.isRecommended, {
+        this.expositionType,
+        this.sponsorType,
+      });
+
+  // Base URL for exhibitor logos
+  static const String _logoBaseUrl = "https://buzzevents.co/uploads/";
 
   factory ExhibitorsClass.fromJson(Map<String, dynamic> json) {
-    // --- MAPPING API FIELDS TO YOUR MODEL FIELDS ---
-    // 'title': Using 'name' if available, otherwise 'societe', else 'No Title'
-    String extractedTitle = (json['name'] as String?) ?? (json['societe'] as String?) ?? 'No Title';
+    // Check for nested 'pivot' data for stand and use default if not present
+    final pivotStand = json['pivot']?['stand'] as String? ?? 'N/A';
 
-    // 'discriptions' and 'shortDiscriptions': Using 'bio' from API
-    String extractedDescription = (json['bio'] as String?) ?? '';
+    // Construct the full image URL from the 'logo' field
+    final logoFileName = json['logo'] as String?;
+    final imageUrl = (logoFileName != null && logoFileName.isNotEmpty)
+        ? '$_logoBaseUrl$logoFileName'
+        : 'assets/ICON-EMEC.png'; // Use a local default image if logo is null or empty
 
-    // 'adress': Using 'address' from API (if available), else empty
-    String extractedAddress = (json['address'] as String?) ?? '';
-
-    // 'siteweb': Using 'site' from API
-    String extractedWebsite = (json['site'] as String?) ?? '';
-
-    // 'image': Using 'pic' from API
-    String extractedImage = (json['pic'] as String?) ?? '';
-
-    // 'isRecommended': Assuming 'valid' == 1 in API means recommended
-    bool extractedIsRecommended = (json['valid'] == 1);
+    // Placeholder for star status (typically loaded from local storage, defaulting to false)
+    bool isStarred = false;
 
     return ExhibitorsClass(
       json['id'] as int,
-      extractedTitle,
-      json['stand'] as String? ?? '', // 'stand' field is NOT present in your API sample, defaulting to empty string
-      extractedDescription,
-      extractedAddress,
-      extractedDescription, // Using 'bio' for full description as well
-      extractedWebsite,
-      extractedImage,
-      json['fav'] as bool? ?? false, // 'fav' field is NOT present in your API sample, defaulting to false
-      json['star'] as bool? ?? false, // 'star' field is NOT present in your API sample, defaulting to false
-      isRecommended: extractedIsRecommended,
+      json['nom'] as String? ?? 'No Name', // nom -> title
+      pivotStand, // pivot.stand -> stand
+      json['pays'] as String? ?? 'N/A', // pays -> adress (used for headquarters country in DetailScreen)
+      json['activite'] as String? ?? 'No Activity', // activite -> shortDiscriptions
+      json['adresse'] as String? ?? 'Details not available.', // adresse -> discriptions (full description)
+      json['site'] as String? ?? 'N/A', // site -> siteweb
+      imageUrl, // logo -> image (full URL)
+      isStarred, // star (default false)
+      false, // isRecommended (handled by expositionType/sponsorType logic)
+
+      // New fields
+      expositionType: json['exposition_type'] as String?,
+      sponsorType: json['sponsor_type'] as String?,
     );
-  }
-
-  Map<String, dynamic> toMap() {
-    return {
-      'id': id,
-      'title': title,
-      'stand': stand,
-      'discriptions': discriptions,
-      'shortDiscriptions': shortDiscriptions,
-      'adress': adress,
-      'siteweb': siteweb,
-      'image': image,
-      'fav': fav,
-      'star': star,
-      'isRecommended': isRecommended,
-    };
-  }
-
-  @override
-  String toString() {
-    return 'id : $id ,title : $title,stand : $stand,discriptions : $discriptions,shortDiscriptions : $shortDiscriptions,adress : $adress,siteweb : $siteweb,image $image,favorite : $fav,star $star,isRecommended $isRecommended';
   }
 }

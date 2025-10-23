@@ -64,6 +64,7 @@ dependencies:
   sqflite: any
   google_maps_flutter:
   geocoding:
+  cached_network_image:
   provider: any
   equatable: any
   #flutter_mute: any

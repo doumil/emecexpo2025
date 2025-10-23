@@ -1,4 +1,5 @@
 // lib/exhibitors_screen.dart
+
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 import 'package:animate_do/animate_do.dart';
@@ -8,17 +9,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_spinkit/flutter_spinkit.dart';
 import 'package:fluttertoast/fluttertoast.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:provider/provider.dart';
 import 'package:emecexpo/providers/theme_provider.dart';
+// 💡 IMPORTANT: Import CachedNetworkImage
+import 'package:cached_network_image/cached_network_image.dart';
 
 import 'package:emecexpo/model/exhibitors_model.dart';
 import 'package:emecexpo/api_services/exhibitor_api_service.dart';
 import 'package:emecexpo/details/DetailExhibitors.dart';
-
-// 💡 NEW IMPORTS for Sponsor functionality
-import 'package:emecexpo/model/sponsor_model.dart';
-import 'package:emecexpo/api_services/sponsor_api_service.dart';
 
 import 'main.dart';
 import 'model/app_theme_data.dart';
@@ -33,19 +31,16 @@ class ExhibitorsScreen extends StatefulWidget {
 class _ExhibitorsScreenState extends State<ExhibitorsScreen> {
   late SharedPreferences prefs;
   List<ExhibitorsClass> _allApiExhibitors = [];
-  // 💡 List is now SponsorClass
-  List<SponsorClass> _sponsors = [];
+
+  List<ExhibitorsClass> _sponsors = [];
   List<ExhibitorsClass> _otherExhibitors = [];
   List<ExhibitorsClass> _filteredOtherExhibitors = [];
 
   bool isLoading = true;
-  bool _sponsorsLoaded = false;
   TextEditingController _searchController = TextEditingController();
   bool _isStarFilterActive = false;
 
   final ExhibitorApiService _exhibitorApiService = ExhibitorApiService();
-  // 💡 NEW Service instance
-  final SponsorApiService _sponsorApiService = SponsorApiService();
 
   @override
   void initState() {
@@ -60,35 +55,81 @@ class _ExhibitorsScreenState extends State<ExhibitorsScreen> {
     super.dispose();
   }
 
+  // Helper to get sponsor color for the border (Uses ExhibitorsClass)
+  Color _getSponsorBorderColor(ExhibitorsClass exhibitor) {
+    // Check sponsor type for color assignment
+    final String? sponsorType = exhibitor.sponsorType?.toLowerCase()?.trim(); // Added trim for safety
+
+    if (sponsorType == 'diamond') {
+      return const Color(0xff00c1c1); // Aqua
+    } else if (sponsorType == 'platinum') { // Corrected: removed extra space
+      return Colors.grey.shade600; // Grey
+    } else if (sponsorType == 'gold') {
+      return const Color(0xffCE8946);
+    }else if (sponsorType == 'bronz'){
+      return const Color(0xffceb346);
+    }
+
+    // Default border color if not a recognized sponsor type or not a sponsor
+    return Colors.grey.withOpacity(0.2);
+  }
+
+  // Helper to determine sort rank for sponsors
+  int _getSponsorRank(String? type) {
+    switch (type?.toLowerCase()?.trim()) { // Added trim for safety
+      case 'diamond':
+        return 1;
+      case 'platinum':
+        return 2;
+      case 'gold':
+        return 3;
+      case 'bronze':
+        return 4;
+      default:
+        return 99; // Non-sponsored or uncategorized at the end
+    }
+  }
+
   _loadData() async {
     setState(() {
       isLoading = true;
     });
 
     try {
-      // 💡 LOAD SPONSORS FROM API
-      try {
-        _sponsors = await _sponsorApiService.getSponsors();
-        _sponsorsLoaded = true;
-        print('API Sponsors Fetched: ${_sponsors.length} items');
-      } catch (e) {
-        // Log sponsor error but allow exhibitor loading to continue
-        print("Error loading sponsors: $e");
-        _sponsorsLoaded = false;
-        // Keep _sponsors empty so the error message is shown in the UI
-      }
-
-      // LOAD MAIN EXHIBITORS FROM API (unchanged logic)
+      // LOAD ALL EXHIBITORS from the single API service
       _allApiExhibitors = await _exhibitorApiService.getExhibitors();
       print('API Exhibitors Fetched: ${_allApiExhibitors.length} items');
 
-      _otherExhibitors = _allApiExhibitors.toList();
-      print('Main Exhibitors List (from API) Populated: ${_otherExhibitors.length} items');
+      // 💡 KEY CHANGE: Filter out all 'partenaire' entries from the main list.
+      final List<ExhibitorsClass> validExhibitors = _allApiExhibitors
+          .where((e) => e.expositionType?.toLowerCase() != 'partenaire')
+          .toList();
 
+      // Filter the valid list into Sponsors and Other Exhibitors
+      _sponsors = validExhibitors
+          .where((e) => e.expositionType?.toLowerCase() == 'sponsor')
+          .toList();
+
+      _otherExhibitors = validExhibitors
+          .where((e) => e.expositionType?.toLowerCase() != 'sponsor')
+          .toList();
+
+      // Sort Sponsors by type priority for display
+      _sponsors.sort((a, b) {
+        int aRank = _getSponsorRank(a.sponsorType);
+        int bRank = _getSponsorRank(b.sponsorType);
+        if (aRank != bRank) {
+          return aRank.compareTo(bRank);
+        }
+        return a.title.compareTo(b.title); // Secondary sort by title
+      });
+
+      // Sort Other Exhibitors alphabetically
       _otherExhibitors.sort((a, b) => a.title.compareTo(b.title));
 
       _filteredOtherExhibitors = _otherExhibitors;
-      print('Filtered Main Exhibitors (initially): ${_filteredOtherExhibitors.length} items');
+      print('Sponsors List Populated: ${_sponsors.length} items');
+      print('Main Exhibitors List Populated: ${_otherExhibitors.length} items');
     } catch (e) {
       print("Error loading ALL data: $e");
       Fluttertoast.showToast(msg: "Failed to load all data: ${e.toString()}", toastLength: Toast.LENGTH_LONG);
@@ -101,7 +142,6 @@ class _ExhibitorsScreenState extends State<ExhibitorsScreen> {
   }
 
   void _filterExhibitors() {
-    // ... (Filter logic remains unchanged, only applies to _otherExhibitors) ...
     String query = _searchController.text.toLowerCase();
     print('Search query: "$query"');
 
@@ -141,27 +181,7 @@ class _ExhibitorsScreenState extends State<ExhibitorsScreen> {
     });
   }
 
-  /*Future<bool> _onWillPop() async {
-    return (await showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Êtes-vous sûr'),
-        content: const Text('Voulez-vous quitter une application'),
-        actions: <Widget>[
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Non'),
-          ),
-          TextButton(
-            onPressed: () => SystemNavigator.pop(),
-            child: const Text('Oui '),
-          ),
-        ],
-      ),
-    )) ?? false;
-  }*/
-
-  // 💡 NEW WIDGET: Error message for Sponsors
+  // NEW WIDGET: Error message for Sponsors
   Widget _buildSponsorErrorState(AppThemeData theme) {
     return Container(
       width: double.infinity,
@@ -246,13 +266,13 @@ class _ExhibitorsScreenState extends State<ExhibitorsScreen> {
                   Fluttertoast.showToast(msg: "Other filters coming soon!");
                 },
               ),
-              IconButton(
+              /*IconButton(
                 icon: Icon(
                   _isStarFilterActive ? Icons.star : Icons.star_border,
                   color: _isStarFilterActive ? theme.secondaryColor : theme.whiteColor,
                 ),
                 onPressed: _toggleStarFilter,
-              ),
+              ),*/
             ],
             bottom: PreferredSize(
               preferredSize: Size.fromHeight(height * 0.08),
@@ -306,14 +326,14 @@ class _ExhibitorsScreenState extends State<ExhibitorsScreen> {
                   SizedBox(
                     height: height * 0.22,
                     child: _sponsors.isEmpty
-                    // 💡 Show error state if no sponsors were loaded/found
+                    // Show error state if no sponsors were loaded/found
                         ? _buildSponsorErrorState(theme)
                         : ListView.builder(
                       scrollDirection: Axis.horizontal,
                       padding: EdgeInsets.symmetric(horizontal: width * 0.04),
                       itemCount: _sponsors.length,
                       itemBuilder: (context, index) {
-                        // 💡 Use the new SponsorClass object
+                        // Use the ExhibitorsClass object
                         return _buildRecommendedExhibitorCard(_sponsors[index], width, height, theme);
                       },
                     ),
@@ -382,12 +402,10 @@ class _ExhibitorsScreenState extends State<ExhibitorsScreen> {
     );
   }
 
-  // 💡 Card widget now accepts a dynamic object (ExhibitorsClass or SponsorClass)
-  Widget _buildRecommendedExhibitorCard(dynamic item, double width, double height, AppThemeData theme) {
-    // We treat the item as either ExhibitorsClass or SponsorClass since they share the same properties
-
-    // Check for the appropriate type of image loading logic here if needed
-    // For now, assume item.image points to an asset path as before
+  // Card widget now accepts ExhibitorsClass
+  Widget _buildRecommendedExhibitorCard(ExhibitorsClass exhibitor, double width, double height, AppThemeData theme) {
+    // Determine border color based on sponsorship level
+    final Color borderColor = _getSponsorBorderColor(exhibitor);
 
     return Container(
       width: width * 0.45,
@@ -403,15 +421,15 @@ class _ExhibitorsScreenState extends State<ExhibitorsScreen> {
             offset: const Offset(0, 2),
           ),
         ],
-        border: Border.all(color: Colors.yellow.shade700, width: 2),
+        border: Border.all(color: borderColor, width: 2), // Dynamic Border
       ),
       child: GestureDetector(
         onTap: () {
-          // Note: DetailExhibitorsScreen needs to handle both Exhibitors and Sponsors if necessary
+          // Navigating to DetailExhibitorsScreen
           Navigator.push(
             context,
             MaterialPageRoute(
-              builder: (context) => DetailExhibitorsScreen(exhibitorId: item.id),
+              builder: (context) => DetailExhibitorsScreen(exhibitorId: exhibitor.id),
             ),
           );
         },
@@ -424,41 +442,46 @@ class _ExhibitorsScreenState extends State<ExhibitorsScreen> {
               Stack(
                 alignment: Alignment.topRight,
                 children: [
-                  Image.asset(
-                    item.image,
+                  // 💡 FIX APPLIED HERE: Use CachedNetworkImage for the logo
+                  SizedBox(
                     width: width * 0.25,
                     height: width * 0.15,
-                    fit: BoxFit.contain,
-                    errorBuilder: (context, error, stackTrace) {
-                      return Image.asset(
-                        'assets/ICON-EMEC.png',
-                        width: width * 0.25,
-                        height: width * 0.15,
+                    child: exhibitor.image.isNotEmpty && (exhibitor.image.startsWith('http') || exhibitor.image.startsWith('https'))
+                        ? CachedNetworkImage(
+                      imageUrl: exhibitor.image,
+                      fit: BoxFit.contain,
+                      placeholder: (context, url) => Center(child: CircularProgressIndicator(strokeWidth: 2, color: theme.secondaryColor)), // Placeholder while loading
+                      errorWidget: (context, url, error) => Image.asset(
+                        'assets/ICON-EMEC.png', // Fallback on error
                         fit: BoxFit.contain,
-                      );
-                    },
+                      ),
+                    )
+                        : Image.asset(
+                      'assets/ICON-EMEC.png', // Fallback for empty or non-URL images
+                      fit: BoxFit.contain,
+                    ),
                   ),
-                  Positioned(
+/* Positioned(
                     top: 0,
                     right: 0,
                     child: IconButton(
                       icon: Icon(
-                        item.star ? Icons.star : Icons.star_border,
-                        color: item.star ? theme.secondaryColor : Colors.grey,
+                        exhibitor.star ? Icons.star : Icons.star_border,
+                        color: exhibitor.star ? theme.secondaryColor : Colors.grey,
                         size: width * 0.05,
                       ),
                       onPressed: () {
                         setState(() {
-                          item.star = !item.star;
+                          exhibitor.star = !exhibitor.star;
                         });
                       },
                     ),
-                  ),
+                  ),*/
                 ],
               ),
               SizedBox(height: height * 0.01),
               Text(
-                item.title,
+                exhibitor.title,
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: height * 0.018,
@@ -470,7 +493,7 @@ class _ExhibitorsScreenState extends State<ExhibitorsScreen> {
               ),
               const SizedBox(height: 2.0),
               Text(
-                item.adress.isNotEmpty ? item.adress : item.shortDiscriptions,
+                exhibitor.adress.isNotEmpty ? exhibitor.adress : exhibitor.shortDiscriptions,
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: height * 0.014,
@@ -486,7 +509,7 @@ class _ExhibitorsScreenState extends State<ExhibitorsScreen> {
     );
   }
 
-  // 💡 List Item widget remains focused on ExhibitorsClass
+  // List Item widget remains focused on ExhibitorsClass
   Widget _buildExhibitorListItem(ExhibitorsClass exhibitor, double width, double height, AppThemeData theme) {
     return InkWell(
       onTap: () {
@@ -511,11 +534,24 @@ class _ExhibitorsScreenState extends State<ExhibitorsScreen> {
           crossAxisAlignment: CrossAxisAlignment.center,
           children: <Widget>[
             ClipOval(
-              child: Image.asset(
-                'assets/ICON-EMEC.png',
+              // 💡 FIX APPLIED HERE: Use CachedNetworkImage for the logo
+              child: SizedBox(
                 width: width * 0.12,
                 height: width * 0.12,
-                fit: BoxFit.cover,
+                child: exhibitor.image.isNotEmpty && (exhibitor.image.startsWith('http') || exhibitor.image.startsWith('https'))
+                    ? CachedNetworkImage(
+                  imageUrl: exhibitor.image,
+                  fit: BoxFit.cover,
+                  placeholder: (context, url) => Center(child: CircularProgressIndicator(strokeWidth: 2, color: theme.secondaryColor)), // Placeholder while loading
+                  errorWidget: (context, url, error) => Image.asset(
+                    'assets/ICON-EMEC.png', // Fallback on error
+                    fit: BoxFit.cover,
+                  ),
+                )
+                    : Image.asset(
+                  'assets/ICON-EMEC.png', // Fallback for empty or non-URL images
+                  fit: BoxFit.cover,
+                ),
               ),
             ),
             SizedBox(width: width * 0.04),
@@ -555,7 +591,7 @@ class _ExhibitorsScreenState extends State<ExhibitorsScreen> {
                 ],
               ),
             ),
-            IconButton(
+            /*IconButton(
               icon: Icon(
                 exhibitor.star ? Icons.star : Icons.star_border,
                 color: exhibitor.star ? theme.secondaryColor : Colors.grey,
@@ -567,7 +603,7 @@ class _ExhibitorsScreenState extends State<ExhibitorsScreen> {
                   _filterExhibitors();
                 });
               },
-            ),
+            ),*/
           ],
         ),
       ),
