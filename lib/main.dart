@@ -527,7 +527,7 @@ class _WelcomPageState extends State<WelcomPage> {
           menuItem(DrawerSections.scannedBadges, "Scanned Badges", Icons.qr_code_scanner, currentSection == DrawerSections.scannedBadges, onNavigate),
           menuItem(DrawerSections.messages, "Messages", Icons.message_outlined, currentSection == DrawerSections.messages, onNavigate),
           menuItem(DrawerSections.myAgenda, "My Agenda", Icons.calendar_today_outlined, currentSection == DrawerSections.myAgenda, onNavigate),
-          menuItem(DrawerSections.meetingRatings, "Meeting ratings", Icons.star_border, currentSection == DrawerSections.meetingRatings, onNavigate),
+          //menuItem(DrawerSections.meetingRatings, "Meeting ratings", Icons.star_border, currentSection == DrawerSections.meetingRatings, onNavigate),
           menuItem(DrawerSections.networking, "Networking", Icons.people_outline, currentSection == DrawerSections.networking, onNavigate),
 
           const Divider(color: Colors.white24, height: 20),
