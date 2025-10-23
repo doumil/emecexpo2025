@@ -9,13 +9,12 @@ import 'package:flutter/services.dart';
 import 'package:flutter_spinkit/flutter_spinkit.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:http/http.dart' as http;
-import 'package:provider/provider.dart'; // 💡 Import Provider
+import 'package:provider/provider.dart';
 import '../api_services/speaker_api_service.dart';
 import 'details/DetailSpeakeres.dart';
 import '../main.dart';
 import '../model/speakers_model.dart';
-import '../providers/theme_provider.dart'; // 💡 Import ThemeProvider
-// import '../model/app_theme_data.dart'; // Not strictly needed if only using Color properties
+import '../providers/theme_provider.dart';
 
 class SpeakersScreen extends StatefulWidget {
   const SpeakersScreen({Key? key}) : super(key: key);
@@ -93,7 +92,10 @@ class _SpeakersScreenState extends State<SpeakersScreen> {
     List<Speakers> searchResults = currentSourceList.where((speaker) {
       final fullName = "${speaker.prenom} ${speaker.nom}".toLowerCase();
       final poste = speaker.poste.toLowerCase();
-      return fullName.contains(query) || poste.contains(query);
+      // ✅ FINAL CORRECTION: Use 'speaker.company' for the search filter
+      final company = speaker.company.toLowerCase();
+
+      return fullName.contains(query) || poste.contains(query) || company.contains(query);
     }).toList();
 
     if (_isFavoriteFilterActive) {
@@ -250,7 +252,8 @@ class _SpeakersScreenState extends State<SpeakersScreen> {
                 child: TextField(
                   controller: _searchController,
                   decoration: InputDecoration(
-                    hintText: 'Recherche',
+                    // 🎯 UPDATED HINT TEXT
+                    hintText: 'Recherche par nom, poste ou compagnie',
                     hintStyle: TextStyle(color: theme.whiteColor.withOpacity(0.7)), // 💡 THEMED
                     prefixIcon: Icon(Icons.search, color: theme.whiteColor), // 💡 THEMED
                     border: InputBorder.none,
@@ -412,6 +415,19 @@ class _SpeakersScreenState extends State<SpeakersScreen> {
                 overflow: TextOverflow.ellipsis,
               ),
               const SizedBox(height: 2.0),
+              // ✅ FINAL CORRECTION: Use 'speaker.company' for company name
+              if (speaker.company.isNotEmpty)
+                Text(
+                  speaker.company,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: height * 0.014,
+                    color: theme.secondaryColor, // Highlight company name
+                    fontWeight: FontWeight.w600,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
               Text(
                 speaker.poste,
                 textAlign: TextAlign.center,
@@ -464,6 +480,18 @@ class _SpeakersScreenState extends State<SpeakersScreen> {
                     overflow: TextOverflow.ellipsis,
                   ),
                   const SizedBox(height: 2.0),
+                  // ✅ FINAL CORRECTION: Use 'speaker.company' for company name
+                  if (speaker.company.isNotEmpty)
+                    Text(
+                      speaker.company,
+                      style: TextStyle(
+                        fontSize: height * 0.016,
+                        color: theme.secondaryColor, // Highlight company name
+                        fontWeight: FontWeight.w600,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
                   Text(
                     speaker.poste,
                     style: TextStyle(
