@@ -244,6 +244,10 @@ class _WelcomPageState extends State<WelcomPage> {
         currentPage = DrawerSections.DetailNetworkin;
       } else if (_data == "9") {
         currentPage = DrawerSections.networking;
+      } else if (_data == "10") {
+        currentPage = DrawerSections.myAgenda;
+      } else if (_data == "11") {
+        currentPage = DrawerSections.program;
       } else {
         currentPage = DrawerSections.home;
       }
@@ -314,7 +318,7 @@ class _WelcomPageState extends State<WelcomPage> {
     else if (currentPage == DrawerSections.networking) {
       container = NetworkinScreen();
     } else if (currentPage == DrawerSections.myAgenda) {
-      container = MyAgendaScreen();
+      container = AgendaScreen();
     } else if (currentPage == DrawerSections.congress) {
       container = CongressScreen();
     } else if (currentPage == DrawerSections.speakers) {

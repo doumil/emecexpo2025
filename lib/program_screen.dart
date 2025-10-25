@@ -8,14 +8,17 @@ import 'package:intl/date_symbol_data_local.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-// Import the new files
+// Import the new services and screen
 import '../api_services/program_api_service.dart';
-import '../model/program_model.dart'; // Must be the updated version
+import '../services/agenda_local_service.dart';
+import '../services/google_calendar_service.dart';
+import '../model/program_model.dart';
 
 // Assuming these are defined elsewhere
 import '../providers/theme_provider.dart';
-import '../main.dart'; // Needed for WelcomPage navigation
+import '../main.dart';
 import '../model/app_theme_data.dart';
+import 'My Agenda.dart';
 import 'details/detail_program_screen.dart';
 
 class ProgramScreen extends StatefulWidget {
@@ -27,6 +30,9 @@ class ProgramScreen extends StatefulWidget {
 
 class _ProgramScreenState extends State<ProgramScreen> {
   final ProgramApiService _apiService = ProgramApiService();
+  final AgendaLocalService _agendaLocalService = AgendaLocalService();
+  final GoogleCalendarService _calendarService = GoogleCalendarService();
+
   ProgramDataModel? _programData;
 
   List<DateTime> uniqueDays = [];
@@ -35,10 +41,10 @@ class _ProgramScreenState extends State<ProgramScreen> {
   String _searchQuery = '';
   final TextEditingController _searchController = TextEditingController();
 
-  final int _selectedCategoryIndex = 0;
-
   List<ProgramItemModel> filteredAgendaItems = [];
   bool isLoading = true;
+
+  Set<String> _savedItemIds = {};
 
   @override
   void initState() {
@@ -75,6 +81,8 @@ class _ProgramScreenState extends State<ProgramScreen> {
         _selectedDayIndex = 0;
       }
 
+      _savedItemIds = await _agendaLocalService.getSavedAgendaItemIds();
+
       _applyFilters();
     } catch (e) {
       print("Error loading program data: $e");
@@ -86,6 +94,22 @@ class _ProgramScreenState extends State<ProgramScreen> {
       }
     }
   }
+
+  void _toggleAgendaItem(ProgramItemModel item) async {
+    // 💥 FIX APPLIED HERE: Convert item.id to String to avoid type cast error 💥
+    final String itemId = item.id.toString();
+
+    final bool wasAdded = await _agendaLocalService.toggleAgendaItem(itemId);
+
+    _savedItemIds = await _agendaLocalService.getSavedAgendaItemIds();
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('${item.title} ${wasAdded ? 'added to' : 'removed from'} agenda.')),
+    );
+
+    setState(() {});
+  }
+
 
   void _extractUniqueDays() {
     if (_programData == null) {
@@ -129,7 +153,6 @@ class _ProgramScreenState extends State<ProgramScreen> {
     if (_searchQuery.isNotEmpty) {
       categoryFilteredItems = categoryFilteredItems.where((item) {
         final query = _searchQuery.toLowerCase();
-        // 💡 FIX: Include speakers in the search filter using the new speakers list
         final speakerNames = item.speakers.map((s) => s.fullName.toLowerCase()).join(' ');
 
         return item.title.toLowerCase().contains(query) ||
@@ -165,7 +188,6 @@ class _ProgramScreenState extends State<ProgramScreen> {
     return Scaffold(
       backgroundColor: theme.whiteColor,
       appBar: AppBar(
-        // ✅ CHANGE: Title is now permanently "Program"
         title: const Text(
           "Program",
           style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 30),
@@ -183,7 +205,18 @@ class _ProgramScreenState extends State<ProgramScreen> {
         foregroundColor: theme.whiteColor,
         centerTitle: true,
         elevation: 0,
-        actions: const [],
+        actions: [
+          // Agenda Icon to navigate to AgendaScreen
+          IconButton(
+            icon: const Icon(Icons.calendar_month, color: Colors.white),
+            onPressed: () async {
+              final prefs = await SharedPreferences.getInstance();
+              prefs.setString("Data", "10");
+              Navigator.pushReplacement(
+                  context, MaterialPageRoute(builder: (context) => const WelcomPage()));
+            },
+          ),
+        ],
         bottom: PreferredSize(
           preferredSize: Size.fromHeight(height * 0.08 + 55),
           child: Column(
@@ -261,8 +294,19 @@ class _ProgramScreenState extends State<ProgramScreen> {
 
             String dateLabel = DateFormat('dd MMM.', 'fr_FR').format(date).toUpperCase();
 
-            // Example Red Dot Logic
-            bool hasRedDot = date.day == 15 && date.month == 4;
+            // Logic to check if any saved agenda item belongs to this day
+            bool hasSavedItems = _programData?.programs.any((item) {
+              if (_savedItemIds.contains(item.id.toString())) { // Use .toString() here too
+                try {
+                  final itemDate = DateFormat('MM/dd/yyyy h:mm a').parse(item.dateDeb);
+                  return itemDate.year == date.year && itemDate.month == date.month && itemDate.day == date.day;
+                } catch (e) {
+                  return false;
+                }
+              }
+              return false;
+            }) ?? false;
+
 
             return GestureDetector(
               onTap: () {
@@ -293,7 +337,7 @@ class _ProgramScreenState extends State<ProgramScreen> {
                         fontSize: width * 0.038,
                       ),
                     ),
-                    if (hasRedDot && !isSelected)
+                    if (hasSavedItems && !isSelected)
                       Positioned(
                         right: 0,
                         top: 0,
@@ -378,17 +422,17 @@ class _ProgramScreenState extends State<ProgramScreen> {
       print("Error formatting time for card: $e");
     }
 
-    // 💡 FIX: Generate speaker names from the list
     String speakerNames = item.speakers.map((s) => s.fullName).join(', ');
 
     String subtitle = item.location;
     if (speakerNames.isNotEmpty) {
       subtitle = '$speakerNames | ${item.location}';
     } else if (item.location == 'Not specified' || item.location.isEmpty) {
-      // Fallback if neither speaker nor location is helpful
       subtitle = "Details non disponibles";
     }
 
+    // Use .toString() when checking membership in the set
+    bool isInAgenda = _savedItemIds.contains(item.id.toString());
 
     return Card(
       color: theme.whiteColor,
@@ -397,8 +441,6 @@ class _ProgramScreenState extends State<ProgramScreen> {
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12.0)),
       child: InkWell(
         onTap: () {
-          // This navigation correctly passes the session item to the DetailProgramScreen
-          // which is responsible for displaying the detailed speaker information.
           Navigator.push(
             context,
             MaterialPageRoute(
@@ -445,7 +487,6 @@ class _ProgramScreenState extends State<ProgramScreen> {
                       overflow: TextOverflow.ellipsis,
                     ),
                     const SizedBox(height: 4),
-                    // 💡 FIX: Display the new subtitle generated from speaker list and location
                     Text(
                       subtitle,
                       style: TextStyle(
@@ -470,6 +511,17 @@ class _ProgramScreenState extends State<ProgramScreen> {
                       padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 2.0),
                     ),
                   ],
+                ),
+              ),
+              // Agenda Icon in Card with toggle action
+              GestureDetector(
+                onTap: () => _toggleAgendaItem(item), // Toggle the item in agenda
+                child: Padding(
+                  padding: const EdgeInsets.only(left: 8.0, top: 4.0),
+                  child: Icon(
+                    isInAgenda ? Icons.bookmark : Icons.bookmark_border,
+                    color: isInAgenda ? theme.secondaryColor : Colors.grey,
+                  ),
                 ),
               ),
             ],

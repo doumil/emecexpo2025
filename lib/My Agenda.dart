@@ -1,219 +1,95 @@
-// lib/my_agenda_screen.dart
+// lib/screens/agenda_screen.dart
 
-import 'package:animate_do/animate_do.dart';
-import 'package:emecexpo/model/agenda_model.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
-import 'package:intl/date_symbol_data_local.dart';
 import 'package:provider/provider.dart';
-import 'package:emecexpo/providers/theme_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'main.dart';
-import 'model/app_theme_data.dart';
+import '../api_services/program_api_service.dart';
+import '../model/program_model.dart';
+import '../providers/theme_provider.dart';
+import '../model/app_theme_data.dart';
+import '../services/agenda_local_service.dart';
+import '../services/google_calendar_service.dart';
+import 'details/detail_program_screen.dart';
+import 'main.dart'; // Assuming WelcomPage is here
+import 'program_screen.dart';
+import 'package:flutter_spinkit/flutter_spinkit.dart';
+import 'package:animate_do/animate_do.dart';
 
-// --- Placeholder for DataBaseHelperNotif (REPLACE WITH YOUR ACTUAL DB HELPER) ---
-class DataBaseHelperNotif {
-  Future<List<CongressDClass>> getListAgenda() async {
-    await Future.delayed(const Duration(milliseconds: 800));
-    return [
-      CongressDClass(
-        id: '1',
-        title: 'Tech Innovation Summit',
-        discription: 'Opening remarks and keynote on AI advancements.',
-        datetimeStart: '2025-04-14 09:00:00',
-        datetimeEnd: '2025-04-14 10:30:00',
-        speaker: 'Dr. Aisha Khan',
-        location: 'Main Auditorium',
-        tags: ['AI', 'Keynote', 'Future'],
-      ),
-      CongressDClass(
-        id: '2',
-        title: 'Networking Brunch',
-        discription: 'Informal gathering to connect with peers.',
-        datetimeStart: '2025-04-14 11:00:00',
-        datetimeEnd: '2025-04-14 12:00:00',
-        speaker: 'Event Staff',
-        location: 'Exhibition Hall',
-        tags: ['Networking', 'Social'],
-      ),
-      CongressDClass(
-        id: '3',
-        title: 'Workshop: Data Privacy',
-        discription: 'Hands-on session on GDPR compliance.',
-        datetimeStart: '2025-04-15 09:30:00',
-        datetimeEnd: '2025-04-15 11:30:00',
-        speaker: 'Mr. Alex Lee',
-        location: 'Room 101',
-        tags: ['Privacy', 'Workshop', 'Legal'],
-      ),
-      CongressDClass(
-        id: '4',
-        title: 'Coffee Break & Product Demos',
-        discription: 'Explore new products from exhibitors.',
-        datetimeStart: '2025-04-15 11:30:00',
-        datetimeEnd: '2025-04-15 12:30:00',
-        speaker: 'Various Exhibitors',
-        location: 'Demo Zone',
-        tags: ['Exhibition', 'Products'],
-      ),
-      CongressDClass(
-        id: '5',
-        title: 'Meeting with Sponsor X',
-        discription: 'Private meeting for strategic partnership.',
-        datetimeStart: '2025-04-15 14:00:00',
-        datetimeEnd: '2025-04-15 15:00:00',
-        speaker: 'Nadia Boulal',
-        location: 'Private Suite 5',
-        tags: ['Meeting', 'Diary', 'Confidential'],
-      ),
-      CongressDClass(
-        id: '6',
-        title: 'Closing Plenary Session',
-        discription: 'Summary of the event and future outlook.',
-        datetimeStart: '2025-04-16 10:00:00',
-        datetimeEnd: '2025-04-16 11:00:00',
-        speaker: 'Event Chairman',
-        location: 'Main Auditorium',
-        tags: ['Closing', 'Summary'],
-      ),
-      CongressDClass(
-        id: '7',
-        title: 'Gala Dinner',
-        discription: 'Formal dinner for attendees (ticketed event).',
-        datetimeStart: '2025-04-16 19:00:00',
-        datetimeEnd: '2025-04-16 22:00:00',
-        speaker: 'Event Organizers',
-        location: 'Grand Ballroom',
-        tags: ['Social', 'Optional', 'Dinner'],
-      ),
-    ];
-  }
-}
-late SharedPreferences prefs;
-// --- Placeholder for DetailCongressScreen (REPLACE WITH YOUR ACTUAL DETAIL SCREEN) ---
-class DetailCongressScreen extends StatelessWidget {
-
-  final bool check;
-  final CongressDClass? agendaItem; // Now takes an optional agenda item
-
-  const DetailCongressScreen({Key? key, required this.check, this.agendaItem}) : super(key: key);
+class AgendaScreen extends StatefulWidget {
+  final int? sourceCode;
+  const AgendaScreen({Key? key, this.sourceCode}) : super(key: key);
 
   @override
-  Widget build(BuildContext context) {
-    final theme = Provider.of<ThemeProvider>(context).currentTheme;
-
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Congress Event Details'),
-        leading: IconButton(
-          icon: Icon(Icons.arrow_back_ios, color: Colors.white), // Assuming a light icon on a colored AppBar
-          onPressed: () async{
-            prefs = await SharedPreferences.getInstance();
-            prefs.setString("Data", "99");
-            Navigator.pushReplacement(
-                context, MaterialPageRoute(builder: (context) => WelcomPage()));
-          },
-        ),
-        backgroundColor: theme.primaryColor,
-        foregroundColor: theme.whiteColor,
-      ),
-      body: Center(
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Text(
-                agendaItem?.title ?? 'No Title',
-                style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: theme.blackColor),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 10),
-              Text(
-                agendaItem?.discription ?? 'No Description',
-                style: TextStyle(fontSize: 18, color: theme.blackColor.withOpacity(0.7)),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 20),
-              Text(
-                'The "check" parameter value is: $check',
-                style: TextStyle(fontSize: 16, fontStyle: FontStyle.italic, color: theme.blackColor),
-              ),
-              const SizedBox(height: 20),
-              Text(
-                'You can display full event details here, like extended description, map location, etc.',
-                textAlign: TextAlign.center,
-                style: TextStyle(color: theme.blackColor.withOpacity(0.5)),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
+  _AgendaScreenState createState() => _AgendaScreenState();
 }
 
-class MyAgendaScreen extends StatefulWidget {
-  const MyAgendaScreen({Key? key}) : super(key: key);
+class _AgendaScreenState extends State<AgendaScreen> {
+  final ProgramApiService _apiService = ProgramApiService();
+  final AgendaLocalService _localService = AgendaLocalService();
+  final GoogleCalendarService _calendarService = GoogleCalendarService();
 
-  @override
-  _MyAgendaScreenState createState() => _MyAgendaScreenState();
-}
+  ProgramDataModel? _programData;
+  Set<String> _savedItemIds = {};
 
-class _MyAgendaScreenState extends State<MyAgendaScreen> with SingleTickerProviderStateMixin {
-  late SharedPreferences prefs;
-  List<CongressDClass> allAgendaItems = [];
-  List<CongressDClass> dailyAgendaItems = [];
-  List<CongressDClass> filteredAgendaItems = [];
+  List<ProgramItemModel> _agendaItems = [];
+  Map<DateTime, List<ProgramItemModel>> _groupedAgenda = {};
 
-  List<DateTime> uniqueDays = [];
-  int _selectedDayIndex = 0;
-
-  final List<String> _categories = ['All', 'Diary', 'Optional'];
-  int _selectedCategoryIndex = 0;
-
-  final DataBaseHelperNotif db = DataBaseHelperNotif();
   bool isLoading = true;
+  int _selectedDayIndex = 0;
+  List<DateTime> _allProgramDays = [];
+
+  String _searchQuery = '';
+  final TextEditingController _searchController = TextEditingController();
 
   @override
   void initState() {
     super.initState();
-    initializeDateFormatting('fr_FR', null).then((_) {
-      _loadData();
-    });
+    _loadAgendaData();
+    _searchController.addListener(_onSearchChanged);
   }
 
   @override
   void dispose() {
+    _searchController.removeListener(_onSearchChanged);
+    _searchController.dispose();
     super.dispose();
   }
 
-  void _loadData() async {
-    isLoading = true;
-    if (mounted) setState(() {});
+  void _onSearchChanged() {
+    if (_searchQuery != _searchController.text.trim()) {
+      _searchQuery = _searchController.text.trim();
+      setState(() {});
+    }
+  }
+
+  Future<void> _loadAgendaData() async {
+    setState(() {
+      isLoading = true;
+    });
 
     try {
-      final List<CongressDClass> fetchedData = await db.getListAgenda();
-      allAgendaItems = fetchedData.where((item) =>
-      item.datetimeStart != null && item.datetimeEnd != null && item.title != null
-      ).toList();
+      // 1. Fetch all program data
+      _programData = await _apiService.fetchProgramDetails();
+      print("DEBUG: API fetched ${_programData?.programs.length ?? 0} program items.");
 
-      _extractUniqueDays();
+      // 2. Get saved item IDs from local storage
+      _savedItemIds = await _localService.getSavedAgendaItemIds();
+      print("DEBUG: Saved Item IDs Loaded: $_savedItemIds");
 
-      if (uniqueDays.isNotEmpty) {
-        DateTime simulatedNow = DateTime(2025, 4, 16);
-        int todayIndex = uniqueDays.indexWhere((day) {
-          return day.year == simulatedNow.year && day.month == simulatedNow.month && day.day == simulatedNow.day;
-        });
-        if (todayIndex != -1) {
-          _selectedDayIndex = todayIndex;
-        } else {
-          _selectedDayIndex = 0;
-        }
-      }
+      // 3. Filter program items based on saved IDs
+      _agendaItems = _programData!.programs
+          .where((item) => _savedItemIds.contains(item.id.toString()))
+          .toList();
 
-      _applyFilters();
+      print("DEBUG: Filtered Agenda Items Count: ${_agendaItems.length}");
+
+      // 4. Group only the saved items by date
+      _groupAgendaItems(_agendaItems);
+
+      // 5. Populate ALL days from program data (FIXED LOGIC HERE)
+      _extractAllProgramDays();
+
     } catch (e) {
       print("Error loading agenda data: $e");
     } finally {
@@ -225,366 +101,405 @@ class _MyAgendaScreenState extends State<MyAgendaScreen> with SingleTickerProvid
     }
   }
 
-  void _extractUniqueDays() {
-    Set<DateTime> days = {};
-    for (var item in allAgendaItems) {
-      try {
-        DateTime startDate = DateTime.parse(item.datetimeStart!);
-        days.add(DateTime(startDate.year, startDate.month, startDate.day));
-      } catch (e) {
-        print("Error parsing datetimeStart for unique days: ${item.datetimeStart} - $e");
-      }
-    }
-    uniqueDays = days.toList();
-    uniqueDays.sort((a, b) => a.compareTo(b));
-  }
-
-  void _applyFilters() {
-    if (uniqueDays.isEmpty || _selectedDayIndex >= uniqueDays.length) {
-      dailyAgendaItems = [];
-      filteredAgendaItems = [];
-      if (mounted) setState(() {});
+  void _extractAllProgramDays() {
+    if (_programData == null) {
+      _allProgramDays = [];
       return;
     }
 
-    DateTime selectedDay = uniqueDays[_selectedDayIndex];
-
-    dailyAgendaItems = allAgendaItems.where((item) {
+    _allProgramDays = _programData!.periods.map((dateString) {
       try {
-        DateTime itemDate = DateTime.parse(item.datetimeStart!);
-        return itemDate.year == selectedDay.year &&
-            itemDate.month == selectedDay.month &&
-            itemDate.day == selectedDay.day;
+        DateTime? parsedDate;
+
+        // Check for the dateDeb format (MM/dd/yyyy h:mm a)
+        if (dateString.contains(':')) {
+          parsedDate = DateFormat('MM/dd/yyyy h:mm a').parse(dateString);
+
+          // 🎯 FIX: Check and handle the yyyy-MM-dd format (e.g., 2025-09-29)
+        } else if (dateString.contains('-') && dateString.length == 10) {
+          parsedDate = DateFormat('yyyy-MM-dd').parse(dateString);
+
+          // Check for MM/dd/yyyy format (less likely in periods, but safe)
+        } else if (dateString.contains('/') && dateString.length == 10) {
+          parsedDate = DateFormat('MM/dd/yyyy').parse(dateString);
+
+        } else {
+          parsedDate = DateTime.parse(dateString);
+        }
+
+        // Normalize to midnight for comparison
+        final day = DateTime(parsedDate.year, parsedDate.month, parsedDate.day);
+        print("DEBUG: Periods Date String: $dateString -> Parsed Day: $day");
+        return day;
       } catch (e) {
-        return false;
+        print("ERROR: Failed to parse period date: $dateString. Error: $e");
+        return null;
       }
-    }).toList();
+    }).where((date) => date != null).cast<DateTime>().toSet().toList();
 
-    filteredAgendaItems = dailyAgendaItems.where((item) {
-      if (_selectedCategoryIndex == 0) {
-        return true;
-      } else if (_selectedCategoryIndex == 1) {
-        return item.tags?.contains('Diary') ?? false;
-      } else if (_selectedCategoryIndex == 2) {
-        return item.tags?.contains('Optional') ?? false;
-      }
-      return true;
-    }).toList();
+    _allProgramDays.sort((a, b) => a.compareTo(b));
 
-    filteredAgendaItems.sort((a, b) {
+    if (_allProgramDays.isNotEmpty && _selectedDayIndex >= _allProgramDays.length) {
+      _selectedDayIndex = 0;
+    }
+    print("DEBUG: Unique Program Days: ${_allProgramDays.length}");
+  }
+
+
+  void _groupAgendaItems(List<ProgramItemModel> items) {
+    _groupedAgenda = {};
+
+    for (var item in items) {
       try {
-        DateTime timeA = DateTime.parse(a.datetimeStart!);
-        DateTime timeB = DateTime.parse(b.datetimeStart!);
-        return timeA.compareTo(timeB);
+        // This format MUST match the API's dateDeb field (e.g., 09/29/2025 12:00 PM)
+        final inputFormat = DateFormat('MM/dd/yyyy h:mm a');
+        final itemDate = inputFormat.parse(item.dateDeb);
+        // Normalize to day start (midnight) for grouping
+        final day = DateTime(itemDate.year, itemDate.month, itemDate.day);
+
+        if (!_groupedAgenda.containsKey(day)) {
+          _groupedAgenda[day] = [];
+        }
+        _groupedAgenda[day]!.add(item);
+        print("DEBUG: Item ID ${item.id} (${item.title}) grouped to Day: $day");
+
       } catch (e) {
-        return 0;
+        print("ERROR: Failed to parse item dateDeb: ${item.dateDeb} for item ID: ${item.id}. Error: $e");
+        // Skip items with invalid dates
       }
+    }
+
+    print("DEBUG: Total Days with Saved Items: ${_groupedAgenda.length}");
+
+    // Sort items within each day by start time
+    _groupedAgenda.forEach((day, list) {
+      list.sort((a, b) {
+        try {
+          final timeA = DateFormat('MM/dd/yyyy h:mm a').parse(a.dateDeb);
+          final timeB = DateFormat('MM/dd/yyyy h:mm a').parse(b.dateDeb);
+          return timeA.compareTo(timeB);
+        } catch (e) {
+          return 0;
+        }
+      });
     });
-
-    if (mounted) setState(() {});
   }
 
-  Future<bool> _onWillPop() async {
-    return (await showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Are you sure?'),
-        content: const Text('Do you want to exit the application?'),
-        actions: <Widget>[
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('No'),
-          ),
-          TextButton(
-            onPressed: () => SystemNavigator.pop(),
-            child: const Text('Yes'),
-          ),
-        ],
-      ),
-    )) ?? false;
+  void _removeItem(ProgramItemModel item) async {
+    await _localService.removeFromAgenda(item.id.toString());
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('${item.title} removed from agenda.')),
+    );
+    _loadAgendaData();
   }
+
 
   @override
   Widget build(BuildContext context) {
-    // 💡 Access the theme provider and get the current theme data.
-    final themeProvider = Provider.of<ThemeProvider>(context);
-    final theme = themeProvider.currentTheme;
-
     final double height = MediaQuery.of(context).size.height;
+    final theme = Provider.of<ThemeProvider>(context).currentTheme;
     final double width = MediaQuery.of(context).size.width;
 
-    return
-      //WillPopScope(
-      //onWillPop: _onWillPop,
-      //child:
-    Scaffold(
-        // ✅ Use a theme color for the background
-        backgroundColor: theme.whiteColor,
-        appBar: AppBar(
-          title: const Text('My Agenda'),
-          leading: IconButton(
-            icon: Icon(Icons.arrow_back_ios, color: Colors.white), // Assuming a light icon on a colored AppBar
-            onPressed: () async{
-              prefs = await SharedPreferences.getInstance();
-              prefs.setString("Data", "99");
-              Navigator.pushReplacement(
-                  context, MaterialPageRoute(builder: (context) => WelcomPage()));
-            },
-          ),
-          // ✅ Use a theme color for the AppBar background
-          backgroundColor: theme.primaryColor,
-          // ✅ Use a theme color for the AppBar foreground
-          foregroundColor: theme.whiteColor,
-          centerTitle: true,
-          elevation: 0,
-          actions: [
-            IconButton(
-              icon: Icon(Icons.search, color: theme.whiteColor),
-              onPressed: () {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Search functionality coming soon!')),
-                );
-              },
-            ),
-          ],
+    return Scaffold(
+      backgroundColor: theme.whiteColor,
+      appBar: AppBar(
+        title: Text(
+          "My Agenda",
+          style: TextStyle(color: theme.whiteColor, fontWeight: FontWeight.bold, fontSize: 30),
         ),
-        body: Column(
-          children: [
-            // Custom Date Selector
-            Container(
-              // ✅ Use a theme color for the date selector background
-              color: theme.primaryColor,
-              padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 16.0),
-              child: isLoading || uniqueDays.isEmpty
-                  ? SizedBox(height: height * 0.05)
-                  : Row(
-                mainAxisAlignment: MainAxisAlignment.spaceAround,
-                children: uniqueDays.asMap().entries.map((entry) {
-                  int idx = entry.key;
-                  DateTime date = entry.value;
-                  bool isSelected = idx == _selectedDayIndex;
-                  String dateLabel = DateFormat('dd MMM.', 'fr_FR').format(date).toUpperCase();
-                  bool hasRedDot = date.day == 15 && date.month == 4;
-
-                  return GestureDetector(
-                    onTap: () {
-                      setState(() {
-                        _selectedDayIndex = idx;
-                        _applyFilters();
-                      });
-                    },
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-                      decoration: BoxDecoration(
-                        // ✅ Use a theme color for the selected date chip
-                        color: isSelected ? Colors.black.withOpacity(0.4) : Colors.transparent,
-                        borderRadius: BorderRadius.circular(20.0),
-                        border: Border.all(
-                          // ✅ Use a theme color for the border
-                          color: isSelected ? Colors.transparent : theme.whiteColor.withOpacity(0.5),
-                          width: 1.0,
-                        ),
-                      ),
-                      child: Stack(
-                        alignment: Alignment.topRight,
-                        children: [
-                          Text(
-                            dateLabel,
-                            style: TextStyle(
-                              // ✅ Use a theme color for the text
-                              color: theme.whiteColor,
-                              fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                              fontSize: width * 0.038,
-                            ),
-                          ),
-                          if (hasRedDot && !isSelected)
-                            Positioned(
-                              right: 0,
-                              top: 0,
-                              child: Container(
-                                width: 6,
-                                height: 6,
-                                decoration: const BoxDecoration(
-                                  // ✅ This color is a specific brand element, so it can remain hardcoded.
-                                  color: Colors.red,
-                                  shape: BoxShape.circle,
-                                ),
-                              ),
-                            ),
-                        ],
-                      ),
-                    ),
-                  );
-                }).toList(),
-              ),
-            ),
-            // "All", "Diary", "Optional" Sub-Tabs
-            Container(
-              // ✅ Use a theme color for the tab bar background
-              color: theme.primaryColor,
-              padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-              child: Container(
-                decoration: BoxDecoration(
-                  // ✅ Use a theme color for the inner tab bar background
-                  color: theme.whiteColor,
-                  borderRadius: BorderRadius.circular(10.0),
-                ),
-                child: Row(
-                  children: _categories.asMap().entries.map((entry) {
-                    int idx = entry.key;
-                    String category = entry.value;
-                    bool isSelected = idx == _selectedCategoryIndex;
-                    return Expanded(
-                      child: GestureDetector(
-                        onTap: () {
-                          setState(() {
-                            _selectedCategoryIndex = idx;
-                            _applyFilters();
-                          });
-                        },
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(vertical: 10.0),
-                          alignment: Alignment.center,
-                          decoration: BoxDecoration(
-                            // ✅ Use a theme color for the selected category tab
-                            color: isSelected ? theme.secondaryColor : Colors.transparent,
-                            borderRadius: BorderRadius.circular(8.0),
-                          ),
-                          child: Text(
-                            category,
-                            style: TextStyle(
-                              // ✅ Use theme colors for the text
-                              color: isSelected ? theme.whiteColor : theme.blackColor.withOpacity(0.87),
-                              fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                              fontSize: width * 0.038,
-                            ),
-                          ),
-                        ),
-                      ),
-                    );
-                  }).toList(),
-                ),
-              ),
-            ),
-            // Agenda Content Area
-            Expanded(
-              child: isLoading
-                  ? Center(
-                // ✅ Use a theme color for the progress indicator
-                child: CircularProgressIndicator(color: theme.secondaryColor),
-              )
-                  : filteredAgendaItems.isEmpty
-                  ? Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Container(
-                      width: width * 0.25,
-                      height: width * 0.2,
-                      decoration: BoxDecoration(
-                        // ✅ Use theme colors for the placeholder icon's container
-                        color: theme.primaryColor.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(width * 0.1),
-                        border: Border.all(color: theme.primaryColor, width: 2),
-                      ),
-                      child: Center(
-                        child: Icon(
-                          Icons.list_alt,
-                          size: width * 0.12,
-                          // ✅ Use theme color for the icon
-                          color: theme.primaryColor,
-                        ),
-                      ),
-                    ),
-                    SizedBox(height: height * 0.03),
-                    Text(
-                      "No activities",
-                      style: TextStyle(
-                          color: theme.blackColor.withOpacity(0.87),
-                          fontSize: width * 0.045,
-                          fontWeight: FontWeight.bold),
-                      textAlign: TextAlign.center,
-                    ),
-                    SizedBox(height: height * 0.01),
-                    Text(
-                      "No activities planned for this day.",
-                      style: TextStyle(color: theme.blackColor.withOpacity(0.6), fontSize: width * 0.035),
-                      textAlign: TextAlign.center,
-                    ),
-                  ],
-                ),
-              )
-                  : FadeInUp(
-                duration: const Duration(milliseconds: 500),
-                child: ListView.builder(
-                  padding: const EdgeInsets.all(8.0),
-                  itemCount: filteredAgendaItems.length,
-                  itemBuilder: (_, int position) {
-                    final item = filteredAgendaItems[position];
-                    return _buildAgendaCard(item, width, height, theme); // Pass theme
-                  },
-                ),
-              ),
-            ),
-          ],
-        ),
-        floatingActionButton: FloatingActionButton(
-          onPressed: () {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Action to add new event to agenda!')),
-            );
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios, color: Colors.white),
+          onPressed: () async {
+            final prefs = await SharedPreferences.getInstance();
+            prefs.setString("Data", "99");
+            // If called directly, push back to welcome page
+            Navigator.pushReplacement(
+                context, MaterialPageRoute(builder: (context) => const WelcomPage()));
           },
-          // ✅ Use a theme color for the FAB background
-          backgroundColor: theme.primaryColor,
-          child: Icon(Icons.add, color: theme.whiteColor),
         ),
-      //),
+        backgroundColor: theme.primaryColor,
+        foregroundColor: theme.whiteColor,
+        centerTitle: true,
+        elevation: 0,
+        actions: const [],
+        bottom: PreferredSize(
+          // Increased height for both Search Bar and Day Selector
+          preferredSize: Size.fromHeight(height * 0.08 + 55),
+          child: Column(
+            children: [
+              // RESTORED SEARCH BAR
+              Padding(
+                padding: EdgeInsets.symmetric(horizontal: width * 0.04, vertical: height * 0.01),
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.2),
+                    borderRadius: BorderRadius.circular(10.0),
+                  ),
+                  child: TextField(
+                    controller: _searchController,
+                    decoration: InputDecoration(
+                      hintText: 'Recherche',
+                      hintStyle: TextStyle(color: Colors.white.withOpacity(0.7)),
+                      prefixIcon: const Icon(Icons.search, color: Colors.white),
+                      border: InputBorder.none,
+                      contentPadding: EdgeInsets.symmetric(vertical: height * 0.015),
+                    ),
+                    style: TextStyle(fontSize: height * 0.02, color: Colors.white),
+                    cursorColor: theme.secondaryColor,
+                  ),
+                ),
+              ),
+              // Day Selector
+              _buildDaySelector(theme, width, height),
+              const SizedBox(height: 5),
+            ],
+          ),
+        ),
+      ),
+      body: isLoading
+          ? Center(
+        child: SpinKitThreeBounce(color: theme.secondaryColor, size: 30.0),
+      )
+          : _buildAgendaContent(theme, width),
+
+      // Floating Action Button to navigate to ProgramScreen
+      floatingActionButton: FadeInUp(
+        child: FloatingActionButton(
+          onPressed: () async {
+            final prefs = await SharedPreferences.getInstance();
+            //navigat
+            prefs.setString("Data", "11");
+            Navigator.pushReplacement(
+                context, MaterialPageRoute(builder: (context) => const WelcomPage()));
+          },
+          backgroundColor: theme.secondaryColor,
+          child: Icon(Icons.add, color: theme.whiteColor, size: 30),
+        ),
+      ),
     );
   }
 
-  Widget _buildAgendaCard(CongressDClass item, double width, double height, AppThemeData theme) {
+  Widget _buildDaySelector(AppThemeData theme, double width, double height) {
+    if (_allProgramDays.isEmpty) {
+      return SizedBox(height: height * 0.08);
+    }
+
+    return Container(
+      color: theme.primaryColor,
+      padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 16.0),
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.start,
+          children: _allProgramDays.asMap().entries.map((entry) {
+            int idx = entry.key;
+            DateTime date = entry.value;
+            bool isSelected = idx == _selectedDayIndex;
+
+            String dateLabel = DateFormat('dd MMM.').format(date).toUpperCase();
+
+            // Check if THIS date has any saved sessions to show a marker
+            bool hasSavedItems = _groupedAgenda.containsKey(date);
+
+            return GestureDetector(
+              onTap: () {
+                setState(() {
+                  _selectedDayIndex = idx;
+                });
+              },
+              child: Container(
+                margin: const EdgeInsets.only(right: 8.0),
+                padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+                decoration: BoxDecoration(
+                  color: isSelected ? Colors.black.withOpacity(0.4) : Colors.transparent,
+                  borderRadius: BorderRadius.circular(20.0),
+                  border: Border.all(
+                    color: isSelected ? Colors.transparent : theme.whiteColor.withOpacity(0.5),
+                    width: 1.0,
+                  ),
+                ),
+                child: Stack(
+                  alignment: Alignment.topRight,
+                  children: [
+                    Text(
+                      dateLabel,
+                      style: TextStyle(
+                        color: theme.whiteColor,
+                        fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                        fontSize: width * 0.038,
+                      ),
+                    ),
+                    if (hasSavedItems && !isSelected)
+                      Positioned(
+                        right: 0,
+                        top: 0,
+                        child: Container(
+                          width: 6,
+                          height: 6,
+                          decoration: const BoxDecoration(
+                            color: Colors.red,
+                            shape: BoxShape.circle,
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            );
+          }).toList(),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildAgendaContent(AppThemeData theme, double width) {
+
+    final currentDay = _allProgramDays.isNotEmpty ? _allProgramDays[_selectedDayIndex] : null;
+    List<ProgramItemModel> sessionsForDay = _groupedAgenda[currentDay] ?? [];
+
+    print("DEBUG: Selected Day: $currentDay | Sessions to Display: ${sessionsForDay.length}");
+
+
+    if (_searchQuery.isNotEmpty) {
+      final query = _searchQuery.toLowerCase();
+      sessionsForDay = sessionsForDay.where((item) {
+        final speakerNames = item.speakers.map((s) => s.fullName.toLowerCase()).join(' ');
+
+        return item.title.toLowerCase().contains(query) ||
+            item.description.toLowerCase().contains(query) ||
+            item.location.toLowerCase().contains(query) ||
+            speakerNames.contains(query);
+      }).toList();
+    }
+
+    // 1. Overall Empty Agenda (no saved items at all)
+    if (_agendaItems.isEmpty) {
+      return Center(
+        child: FadeIn(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.calendar_today, size: 80, color: theme.primaryColor.withOpacity(0.5)),
+              const SizedBox(height: 20),
+              Text(
+                "Your Agenda is Empty",
+                style: TextStyle(
+                    color: theme.blackColor.withOpacity(0.87),
+                    fontSize: width * 0.05,
+                    fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 5),
+              Text(
+                "Add sessions from the Program screen to see them here.",
+                style: TextStyle(color: theme.blackColor.withOpacity(0.6), fontSize: width * 0.035),
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    // 2. Empty Search Results
+    if (_searchQuery.isNotEmpty && sessionsForDay.isEmpty) {
+      return Center(
+        child: FadeIn(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.search_off, size: 80, color: theme.primaryColor.withOpacity(0.5)),
+              const SizedBox(height: 20),
+              Text(
+                "No Search Results",
+                style: TextStyle(
+                    color: theme.blackColor.withOpacity(0.87),
+                    fontSize: width * 0.05,
+                    fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 5),
+              Text(
+                "Try refining your search query.",
+                style: TextStyle(color: theme.blackColor.withOpacity(0.6), fontSize: width * 0.035),
+                // 🎯 CORRECTED SYNTAX
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    // 3. No Saved Sessions on Selected Day (but other days have sessions)
+    if (sessionsForDay.isEmpty) {
+      return Center(
+        child: FadeIn(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.event_busy, size: 80, color: theme.primaryColor.withOpacity(0.5)),
+              const SizedBox(height: 20),
+              Text(
+                "No Saved Sessions on this Day",
+                style: TextStyle(
+                    color: theme.blackColor.withOpacity(0.87),
+                    fontSize: width * 0.05,
+                    fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 5),
+              Text(
+                "Check other dates or add sessions from the Program.",
+                style: TextStyle(color: theme.blackColor.withOpacity(0.6), fontSize: width * 0.035),
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+
+    return FadeInUp(
+      duration: const Duration(milliseconds: 500),
+      child: ListView.builder(
+        padding: const EdgeInsets.all(8.0),
+        itemCount: sessionsForDay.length,
+        itemBuilder: (_, int position) {
+          final item = sessionsForDay[position];
+          return _buildAgendaCard(item, width, theme);
+        },
+      ),
+    );
+  }
+
+  Widget _buildAgendaCard(ProgramItemModel item, double width, AppThemeData theme) {
     String startTime = 'N/A';
     String endTime = 'N/A';
     try {
-      if (item.datetimeStart != null) {
-        startTime = DateFormat('HH:mm').format(DateTime.parse(item.datetimeStart!));
+      final inputFormat = DateFormat('MM/dd/yyyy h:mm a');
+      if (item.dateDeb.isNotEmpty) {
+        startTime = DateFormat('HH:mm').format(inputFormat.parse(item.dateDeb));
       }
-      if (item.datetimeEnd != null) {
-        endTime = DateFormat('HH:mm').format(DateTime.parse(item.datetimeEnd!));
+      if (item.dateFin.isNotEmpty) {
+        endTime = DateFormat('HH:mm').format(inputFormat.parse(item.dateFin));
       }
     } catch (e) {
-      print("Error formatting time for card: $e");
+      // Time format error
     }
 
-    String speakerAndLocation = '';
-    if (item.speaker != null && item.speaker!.isNotEmpty) {
-      speakerAndLocation += item.speaker!;
-    }
-    if (item.location != null && item.location!.isNotEmpty) {
-      if (speakerAndLocation.isNotEmpty) speakerAndLocation += ' | ';
-      speakerAndLocation += item.location!;
-    }
-    if (speakerAndLocation.isEmpty && item.discription != null && item.discription!.isNotEmpty) {
-      speakerAndLocation = item.discription!;
-      if (speakerAndLocation.length > 70) {
-        speakerAndLocation = '${speakerAndLocation.substring(0, 70)}...';
-      }
-    }
+    String speakerNames = item.speakers.map((s) => s.fullName).join(', ');
+    String subtitle = speakerNames.isNotEmpty ? '$speakerNames | ${item.location}' : item.location;
 
     return Card(
-      // ✅ Use theme colors for the card
       color: theme.whiteColor,
       margin: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 4.0),
       elevation: 3.0,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12.0),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12.0)),
       child: InkWell(
         onTap: () {
           Navigator.push(
             context,
             MaterialPageRoute(
-              builder: (context) => DetailCongressScreen(check: false, agendaItem: item),
+              builder: (context) => DetailProgramScreen(programItem: item),
             ),
           );
         },
@@ -593,108 +508,65 @@ class _MyAgendaScreenState extends State<MyAgendaScreen> with SingleTickerProvid
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              // Time Box
               Container(
                 width: width * 0.2,
                 padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 4.0),
                 decoration: BoxDecoration(
-                  // ✅ Use theme colors for the time box
                   color: theme.secondaryColor.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(8.0),
                 ),
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Text(
-                      startTime,
-                      style: TextStyle(
-                        // ✅ Use theme color for the time text
-                        color: theme.secondaryColor,
-                        fontSize: height * 0.018,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    Text(
-                      '-',
-                      style: TextStyle(
-                        color: theme.secondaryColor,
-                        fontSize: height * 0.016,
-                      ),
-                    ),
-                    Text(
-                      endTime,
-                      style: TextStyle(
-                        color: theme.secondaryColor,
-                        fontSize: height * 0.018,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
+                    Text(startTime, style: TextStyle(color: theme.secondaryColor, fontSize: 14, fontWeight: FontWeight.bold)),
+                    Text('-', style: TextStyle(color: theme.secondaryColor, fontSize: 12)),
+                    Text(endTime, style: TextStyle(color: theme.secondaryColor, fontSize: 14, fontWeight: FontWeight.bold)),
                   ],
                 ),
               ),
               SizedBox(width: width * 0.04),
+              // Details
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      item.title ?? 'No Title',
-                      style: TextStyle(
-                        fontSize: height * 0.022,
-                        fontWeight: FontWeight.bold,
-                        // ✅ Use theme color for the title text
-                        color: theme.blackColor.withOpacity(0.87),
-                      ),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    SizedBox(height: height * 0.005),
-                    if (speakerAndLocation.isNotEmpty)
-                      Text(
-                        speakerAndLocation,
-                        style: TextStyle(
-                          fontSize: height * 0.016,
-                          // ✅ Use theme color for the subtitle
-                          color: theme.blackColor.withOpacity(0.6),
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    SizedBox(height: height * 0.01),
-                    if (item.tags != null && item.tags!.isNotEmpty)
-                      Wrap(
-                        spacing: 6.0,
-                        runSpacing: 4.0,
-                        children: item.tags!.map((tag) => Chip(
-                          label: Text(
-                            '#$tag',
-                            style: TextStyle(
-                              fontSize: height * 0.014,
-                              // ✅ Use a theme color for the chip text
-                              color: theme.blackColor.withOpacity(0.7),
-                            ),
-                          ),
-                          // ✅ Use a theme color for the chip background
-                          backgroundColor: theme.blackColor.withOpacity(0.05),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(5.0),
-                          ),
-                          padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 2.0),
-                        )).toList(),
-                      ),
+                    Text(item.title, style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: theme.blackColor.withOpacity(0.87)), maxLines: 2, overflow: TextOverflow.ellipsis),
+                    const SizedBox(height: 4),
+                    Text(subtitle, style: TextStyle(fontSize: 14, color: theme.blackColor.withOpacity(0.6)), maxLines: 1, overflow: TextOverflow.ellipsis),
                   ],
                 ),
               ),
-              Align(
-                alignment: Alignment.topRight,
-                child: IconButton(
-                  // ✅ The star color can remain hardcoded or be a new theme property
-                  icon: Icon(Icons.star_border, color: Colors.amber[700], size: width * 0.06),
-                  onPressed: () {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('Toggled favorite for ${item.title}')),
-                    );
-                  },
-                ),
+              // Remove/Calendar Actions
+              Column(
+                children: [
+                  // Remove from Agenda Button (Bookmark icon)
+                  GestureDetector(
+                    onTap: () => _removeItem(item),
+                    child: Padding(
+                      padding: const EdgeInsets.only(left: 8.0, top: 4.0),
+                      child: Icon(
+                        Icons.bookmark,
+                        color: theme.secondaryColor,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  // Add to Google Calendar Button
+                  GestureDetector(
+                    onTap: () {
+                      _calendarService.createCalendarEvent(context, item);
+                    },
+                    child: const Padding(
+                      padding: EdgeInsets.only(left: 8.0, top: 4.0),
+                      child: Icon(
+                        Icons.calendar_today,
+                        color: Colors.grey,
+                        size: 20,
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
