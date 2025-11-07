@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+// 💡 CORRECTED IMPORT PATH FOR API SERVICE
 import '../api_services/program_api_service.dart';
 import '../model/program_model.dart';
 import '../providers/theme_provider.dart';
@@ -12,7 +13,7 @@ import '../services/agenda_local_service.dart';
 import '../services/google_calendar_service.dart';
 import 'details/detail_program_screen.dart';
 import 'main.dart'; // Assuming WelcomPage is here
-import 'program_screen.dart';
+import 'program_screen.dart' hide ProgramApiService;
 import 'package:flutter_spinkit/flutter_spinkit.dart';
 import 'package:animate_do/animate_do.dart';
 
@@ -41,6 +42,41 @@ class _AgendaScreenState extends State<AgendaScreen> {
 
   String _searchQuery = '';
   final TextEditingController _searchController = TextEditingController();
+
+  // 💡 Map program types to specific colors
+  static final Map<String, Color> _typeColors = {
+    // Atelier: #61CE70 (Green)
+    'atelier': const Color(0xFF61CE70),
+    // Conférence/Conférance: Blue
+    'conférence': const Color(0xFF2196F3),
+    'conférance': const Color(0xFF2196F3),
+    // Panel: Orange
+    'panel': const Color(0xFFFF9800),
+  };
+
+  // 💡 Helper function to get text color based on type
+  Color _getColorForType(String type, AppThemeData theme) {
+    final normalizedType = type.toLowerCase().trim();
+
+    Color backgroundColor = _typeColors[normalizedType] ?? theme.blackColor.withOpacity(0.05);
+
+    Color textColor;
+    if (backgroundColor == const Color(0xFF61CE70) ||
+        backgroundColor == const Color(0xFF2196F3) ||
+        backgroundColor == const Color(0xFFFF9800)) {
+      textColor = Colors.white;
+    } else {
+      textColor = theme.blackColor.withOpacity(0.7);
+    }
+
+    return textColor;
+  }
+
+  // 💡 Helper function to get background color
+  Color _getBackgroundColorForType(String type, AppThemeData theme) {
+    final normalizedType = type.toLowerCase().trim();
+    return _typeColors[normalizedType] ?? theme.blackColor.withOpacity(0.05);
+  }
 
   @override
   void initState() {
@@ -128,7 +164,7 @@ class _AgendaScreenState extends State<AgendaScreen> {
         }
 
         // Normalize to midnight for comparison
-        final day = DateTime(parsedDate.year, parsedDate.month, parsedDate.day);
+        final day = DateTime(parsedDate!.year, parsedDate.month, parsedDate.day);
         print("DEBUG: Periods Date String: $dateString -> Parsed Day: $day");
         return day;
       } catch (e) {
@@ -487,7 +523,16 @@ class _AgendaScreenState extends State<AgendaScreen> {
     }
 
     String speakerNames = item.speakers.map((s) => s.fullName).join(', ');
-    String subtitle = speakerNames.isNotEmpty ? '$speakerNames | ${item.location}' : item.location;
+    // Subtitle now only holds location, speakers are in a separate row
+    String subtitle = item.location;
+    if (item.location == 'Not specified' || item.location.isEmpty) {
+      subtitle = "Details non disponibles";
+    }
+
+    // 💡 COLOR LOGIC: Get dynamic colors for the Chip
+    Color chipBackgroundColor = _getBackgroundColorForType(item.type, theme);
+    Color chipTextColor = _getColorForType(item.type, theme);
+
 
     return Card(
       color: theme.whiteColor,
@@ -533,7 +578,49 @@ class _AgendaScreenState extends State<AgendaScreen> {
                   children: [
                     Text(item.title, style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: theme.blackColor.withOpacity(0.87)), maxLines: 2, overflow: TextOverflow.ellipsis),
                     const SizedBox(height: 4),
+
+                    // 💡 UPDATED: Speaker with Icon
+                    if (speakerNames.isNotEmpty)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 4.0),
+                        child: Row(
+                          children: [
+                            Icon(Icons.person, size: 16, color: theme.secondaryColor),
+                            const SizedBox(width: 4),
+                            Expanded(
+                              child: Text(
+                                speakerNames,
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  color: theme.blackColor.withOpacity(0.87),
+                                  fontWeight: FontWeight.w500,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+
+                    // Location (now the main subtitle)
                     Text(subtitle, style: TextStyle(fontSize: 14, color: theme.blackColor.withOpacity(0.6)), maxLines: 1, overflow: TextOverflow.ellipsis),
+                    const SizedBox(height: 8),
+
+                    // Type Tag with dynamic color
+                    Chip(
+                      label: Text(
+                        item.type,
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: chipTextColor,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      backgroundColor: chipBackgroundColor,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(5.0)),
+                      padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 2.0),
+                    ),
                   ],
                 ),
               ),

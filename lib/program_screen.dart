@@ -8,7 +8,7 @@ import 'package:intl/date_symbol_data_local.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-// Import the new services and screen
+// 💡 CORRECTED IMPORT PATH FOR API SERVICE
 import '../api_services/program_api_service.dart';
 import '../services/agenda_local_service.dart';
 import '../services/google_calendar_service.dart';
@@ -29,6 +29,7 @@ class ProgramScreen extends StatefulWidget {
 }
 
 class _ProgramScreenState extends State<ProgramScreen> {
+  // 💡 Initialization remains correct
   final ProgramApiService _apiService = ProgramApiService();
   final AgendaLocalService _agendaLocalService = AgendaLocalService();
   final GoogleCalendarService _calendarService = GoogleCalendarService();
@@ -45,6 +46,44 @@ class _ProgramScreenState extends State<ProgramScreen> {
   bool isLoading = true;
 
   Set<String> _savedItemIds = {};
+
+  // 💡 NEW: Map program types to specific colors
+  static final Map<String, Color> _typeColors = {
+    // Atelier: #61CE70 (Green)
+    'atelier': const Color(0xFF61CE70),
+    // Conférence/Conférance: Blue
+    'conférence': const Color(0xFF2196F3),
+    'conférance': const Color(0xFF2196F3),
+    // Panel: Orange
+    'panel': const Color(0xFFFF9800),
+  };
+
+  // 💡 Helper function to get text color based on type
+  Color _getColorForType(String type, AppThemeData theme) {
+    // Normalize type to lowercase for case-insensitive matching
+    final normalizedType = type.toLowerCase().trim();
+
+    // Get the background color
+    Color backgroundColor = _typeColors[normalizedType] ?? theme.blackColor.withOpacity(0.05);
+
+    // Determine a readable text color
+    Color textColor;
+    if (backgroundColor == const Color(0xFF61CE70) ||
+        backgroundColor == const Color(0xFF2196F3) ||
+        backgroundColor == const Color(0xFFFF9800)) {
+      textColor = Colors.white;
+    } else {
+      textColor = theme.blackColor.withOpacity(0.7);
+    }
+
+    return textColor;
+  }
+
+  // 💡 Helper function to get background color
+  Color _getBackgroundColorForType(String type, AppThemeData theme) {
+    final normalizedType = type.toLowerCase().trim();
+    return _typeColors[normalizedType] ?? theme.blackColor.withOpacity(0.05);
+  }
 
   @override
   void initState() {
@@ -96,7 +135,7 @@ class _ProgramScreenState extends State<ProgramScreen> {
   }
 
   void _toggleAgendaItem(ProgramItemModel item) async {
-    // 💥 FIX APPLIED HERE: Convert item.id to String to avoid type cast error 💥
+    // Convert item.id to String
     final String itemId = item.id.toString();
 
     final bool wasAdded = await _agendaLocalService.toggleAgendaItem(itemId);
@@ -296,7 +335,7 @@ class _ProgramScreenState extends State<ProgramScreen> {
 
             // Logic to check if any saved agenda item belongs to this day
             bool hasSavedItems = _programData?.programs.any((item) {
-              if (_savedItemIds.contains(item.id.toString())) { // Use .toString() here too
+              if (_savedItemIds.contains(item.id.toString())) {
                 try {
                   final itemDate = DateFormat('MM/dd/yyyy h:mm a').parse(item.dateDeb);
                   return itemDate.year == date.year && itemDate.month == date.month && itemDate.day == date.day;
@@ -423,16 +462,17 @@ class _ProgramScreenState extends State<ProgramScreen> {
     }
 
     String speakerNames = item.speakers.map((s) => s.fullName).join(', ');
-
     String subtitle = item.location;
-    if (speakerNames.isNotEmpty) {
-      subtitle = '$speakerNames | ${item.location}';
-    } else if (item.location == 'Not specified' || item.location.isEmpty) {
+    if (item.location == 'Not specified' || item.location.isEmpty) {
       subtitle = "Details non disponibles";
     }
 
     // Use .toString() when checking membership in the set
     bool isInAgenda = _savedItemIds.contains(item.id.toString());
+
+    // 💡 COLOR LOGIC: Get dynamic colors for the Chip
+    Color chipBackgroundColor = _getBackgroundColorForType(item.type, theme);
+    Color chipTextColor = _getColorForType(item.type, theme);
 
     return Card(
       color: theme.whiteColor,
@@ -487,6 +527,32 @@ class _ProgramScreenState extends State<ProgramScreen> {
                       overflow: TextOverflow.ellipsis,
                     ),
                     const SizedBox(height: 4),
+
+                    // 💡 UPDATED: Speaker with Icon
+                    if (speakerNames.isNotEmpty)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 4.0),
+                        child: Row(
+                          children: [
+                            Icon(Icons.person, size: 16, color: theme.secondaryColor),
+                            const SizedBox(width: 4),
+                            Expanded(
+                              child: Text(
+                                speakerNames,
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  color: theme.blackColor.withOpacity(0.87),
+                                  fontWeight: FontWeight.w500,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+
+                    // Location (now the main subtitle)
                     Text(
                       subtitle,
                       style: TextStyle(
@@ -497,16 +563,18 @@ class _ProgramScreenState extends State<ProgramScreen> {
                       overflow: TextOverflow.ellipsis,
                     ),
                     const SizedBox(height: 8),
+
                     // Type Tag
                     Chip(
                       label: Text(
                         item.type,
                         style: TextStyle(
                           fontSize: 12,
-                          color: theme.blackColor.withOpacity(0.7),
+                          color: chipTextColor,
+                          fontWeight: FontWeight.bold,
                         ),
                       ),
-                      backgroundColor: theme.blackColor.withOpacity(0.05),
+                      backgroundColor: chipBackgroundColor,
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(5.0)),
                       padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 2.0),
                     ),
