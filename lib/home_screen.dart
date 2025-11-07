@@ -149,16 +149,24 @@ class _HomeScreenState extends State<HomeScreen> {
   // Helper method to map MenuConfig booleans to a final, filtered List<MenuItem>
   List<MenuItem> _getVisibleMenuItems(MenuConfig menuConfig) {
     // Define all possible items. The order here determines the layout order.
+    // 💡 CHANGE: 'My Agenda' moved to the 3rd spot to be one of the small cards.
+    // 'Exhibitors' is moved down to the 4th spot.
     final List<Map<String, dynamic>> allItems = [
-      // The first item is marked with 'custom: true' to trigger the big card layout rule
+      // 1. BIG CARD: My Badge (Custom card flag set)
       {'title': 'My Badge', 'icon': Icons.qr_code_scanner, 'section': DrawerSections.myBadge, 'field': menuConfig.badge, 'custom': true},
+
+      // 2. SMALL CARD 1: Floor Plan
       {'title': 'Floor Plan', 'icon': Icons.location_on_outlined, 'section': DrawerSections.eFP, 'field': menuConfig.floorPlan},
-      {'title': 'Networking', 'icon': Icons.people_outline, 'section': DrawerSections.networking, 'field': menuConfig.networking},
+
+      // 3. SMALL CARD 2: My Agenda (NEWLY PRIORITIZED)
+      {'title': 'My Agenda', 'icon': Icons.calendar_today_outlined, 'section': DrawerSections.myAgenda, 'field': menuConfig.program},
+
+      // 4. REST OF ITEMS (Order doesn't matter for the first row anymore, but maintained for the rest)
       {'title': 'Exhibitors', 'icon': Icons.store_mall_directory_outlined, 'section': DrawerSections.exhibitors, 'field': menuConfig.exhibitors},
+      {'title': 'Networking', 'icon': Icons.people_outline, 'section': DrawerSections.networking, 'field': menuConfig.networking},
       {'title': 'Products', 'icon': Icons.category_outlined, 'section': DrawerSections.products, 'field': menuConfig.products},
       {'title': 'Conferences', 'icon': Icons.account_balance, 'section': DrawerSections.congresses, 'field': menuConfig.congresses},
       {'title': 'Speakers', 'icon': Icons.person_outline, 'section': DrawerSections.speakers, 'field': menuConfig.speakers},
-      {'title': 'My Agenda', 'icon': Icons.calendar_today_outlined, 'section': DrawerSections.myAgenda, 'field': menuConfig.program},
       {'title': 'Partners', 'icon': Icons.handshake_outlined, 'section': DrawerSections.partners, 'field': menuConfig.partners},
       {'title': 'Sponsors', 'icon': Icons.favorite_outline, 'section': DrawerSections.sponsors, 'field': menuConfig.sponsors},
     ];
@@ -267,64 +275,69 @@ class _HomeScreenState extends State<HomeScreen> {
 
         if (itemCount > 0) {
           // Original layout logic: Special layout if total items are odd OR the first item is marked 'custom' (My Badge) AND there are 3+ items.
+          // This logic remains to trigger the desired 3-card layout (1 big, 2 small) if the top three are visible.
           bool isFirstRowSpecial = ((itemCount % 2 != 0) || allVisibleMenuItems[0].isCustomCard) && itemCount >= 3;
 
           if (isFirstRowSpecial) {
-            // Layout 1: Big Card (index 0 - My Badge) + 2 Small Cards (Floor Plan, Exhibitors)
-            final bigCard = _buildFlexibleMenuCard(
-              context: context,
-              item: allVisibleMenuItems[index],
-              cardHeight: height * 0.28,
-              iconSize: 60,
-              fontSize: 22.0,
-              horizontalPadding: width * 0.05,
-              themeProvider: themeProvider,
-              isWide: true,
-            );
+            // Layout 1: Big Card (index 0 - My Badge) + 2 Small Cards (Floor Plan, My Agenda)
 
-            final smallCard1 = _buildFlexibleMenuCard(
-              context: context,
-              item: allVisibleMenuItems[index + 1],
-              cardHeight: height * 0.13,
-              iconSize: 40,
-              fontSize: 15.0,
-              horizontalPadding: width * 0.08,
-              themeProvider: themeProvider,
-            );
+            // Check if the required 3 items exist and are enabled
+            if (itemCount >= 3 && allVisibleMenuItems[0].isCustomCard) {
+              final bigCard = _buildFlexibleMenuCard(
+                context: context,
+                item: allVisibleMenuItems[index], // My Badge
+                cardHeight: height * 0.28,
+                iconSize: 60,
+                fontSize: 22.0,
+                horizontalPadding: width * 0.05,
+                themeProvider: themeProvider,
+                isWide: true,
+              );
 
-            final smallCard2 = _buildFlexibleMenuCard(
-              context: context,
-              item: allVisibleMenuItems[index + 2],
-              cardHeight: height * 0.13,
-              iconSize: 40,
-              fontSize: 15.0,
-              horizontalPadding: width * 0.08,
-              themeProvider: themeProvider,
-            );
+              final smallCard1 = _buildFlexibleMenuCard(
+                context: context,
+                item: allVisibleMenuItems[index + 1], // Floor Plan
+                cardHeight: height * 0.13,
+                iconSize: 40,
+                fontSize: 15.0,
+                horizontalPadding: width * 0.08,
+                themeProvider: themeProvider,
+              );
 
-            // Assemble the special row
-            menuWidgets.add(
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Expanded(flex: 3, child: bigCard), // ~60% width
-                  SizedBox(width: hSpacing),
-                  Expanded(
-                    flex: 2, // ~40% width
-                    child: Column(
-                      children: [
-                        smallCard1,
-                        SizedBox(height: height * 0.018),
-                        smallCard2,
-                      ],
+              final smallCard2 = _buildFlexibleMenuCard(
+                context: context,
+                item: allVisibleMenuItems[index + 2], // My Agenda
+                cardHeight: height * 0.13,
+                iconSize: 40,
+                fontSize: 15.0,
+                horizontalPadding: width * 0.08,
+                themeProvider: themeProvider,
+              );
+
+              // Assemble the special row
+              menuWidgets.add(
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(flex: 3, child: bigCard), // ~60% width
+                    SizedBox(width: hSpacing),
+                    Expanded(
+                      flex: 2, // ~40% width
+                      child: Column(
+                        children: [
+                          smallCard1,
+                          SizedBox(height: height * 0.018),
+                          smallCard2,
+                        ],
+                      ),
                     ),
-                  ),
-                ],
-              ),
-            );
-            menuWidgets.add(SizedBox(height: vSpacing));
-            index += 3; // Advance index by 3
-          } else if (itemCount >= 2 && !isFirstRowSpecial) {
+                  ],
+                ),
+              );
+              menuWidgets.add(SizedBox(height: vSpacing));
+              index += 3; // Advance index by 3
+            }
+          } else if (itemCount >= 2 && index == 0) {
             // Layout 2: Two equal cards (For the first row if it's not the special 3-card layout)
             final card1 = _buildFlexibleMenuCard(
               context: context,
@@ -356,7 +369,7 @@ class _HomeScreenState extends State<HomeScreen> {
             );
             menuWidgets.add(SizedBox(height: vSpacing));
             index += 2;
-          } else if (itemCount == 1 && !isFirstRowSpecial) {
+          } else if (itemCount == 1 && index == 0) {
             // Layout 3: Single card (If only one item exists)
             final singleCard = _buildFlexibleMenuCard(
               context: context,
