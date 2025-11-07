@@ -257,15 +257,15 @@ class _ExhibitorsScreenState extends State<ExhibitorsScreen> {
             ),
             centerTitle: true,
             actions: [
-              IconButton(
-                icon: Icon(
-                  Icons.filter_list,
-                  color: theme.whiteColor,
-                ),
-                onPressed: () {
-                  Fluttertoast.showToast(msg: "Other filters coming soon!");
-                },
-              ),
+              // IconButton(
+              //   icon: Icon(
+              //     Icons.filter_list,
+              //     color: theme.whiteColor,
+              //   ),
+              //   onPressed: () {
+              //     Fluttertoast.showToast(msg: "Other filters coming soon!");
+              //   },
+              // ),
               /*IconButton(
                 icon: Icon(
                   _isStarFilterActive ? Icons.star : Icons.star_border,
@@ -406,105 +406,131 @@ class _ExhibitorsScreenState extends State<ExhibitorsScreen> {
   Widget _buildRecommendedExhibitorCard(ExhibitorsClass exhibitor, double width, double height, AppThemeData theme) {
     // Determine border color based on sponsorship level
     final Color borderColor = _getSponsorBorderColor(exhibitor);
+    // Determine the category name to display (e.g., "DIAMOND", "GOLD")
+    final String? categoryName = exhibitor.sponsorType?.trim().toUpperCase();
 
-    return Container(
-      width: width * 0.45,
-      margin: EdgeInsets.only(right: width * 0.03),
-      decoration: BoxDecoration(
-        color: theme.whiteColor,
-        borderRadius: BorderRadius.circular(10.0),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.grey.withOpacity(0.2),
-            spreadRadius: 1,
-            blurRadius: 3,
-            offset: const Offset(0, 2),
+    return GestureDetector(
+      onTap: () {
+        // Navigating to DetailExhibitorsScreen
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => DetailExhibitorsScreen(exhibitorId: exhibitor.id),
           ),
-        ],
-        border: Border.all(color: borderColor, width: 2), // Dynamic Border
-      ),
-      child: GestureDetector(
-        onTap: () {
-          // Navigating to DetailExhibitorsScreen
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => DetailExhibitorsScreen(exhibitorId: exhibitor.id),
+        );
+      },
+      child: Stack( // 💡 NEW: Use Stack to layer the text banner over the card
+        clipBehavior: Clip.none, // Allows the banner to extend outside the main Container
+        children: [
+          Container(
+            width: width * 0.45,
+            margin: EdgeInsets.only(right: width * 0.03, top: 10.0), // 💡 ADDED TOP MARGIN for banner space
+            decoration: BoxDecoration(
+              color: theme.whiteColor,
+              borderRadius: BorderRadius.circular(10.0),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.grey.withOpacity(0.2),
+                  spreadRadius: 1,
+                  blurRadius: 3,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+              border: Border.all(color: borderColor, width: 2), // Dynamic Border
             ),
-          );
-        },
-        child: Padding(
-          padding: EdgeInsets.all(width * 0.02),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              Stack(
-                alignment: Alignment.topRight,
+            child: Padding(
+              padding: EdgeInsets.all(width * 0.02),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-                  // 💡 FIX APPLIED HERE: Use CachedNetworkImage for the logo
-                  SizedBox(
-                    width: width * 0.25,
-                    height: width * 0.15,
-                    child: exhibitor.image.isNotEmpty && (exhibitor.image.startsWith('http') || exhibitor.image.startsWith('https'))
-                        ? CachedNetworkImage(
-                      imageUrl: exhibitor.image,
-                      fit: BoxFit.contain,
-                      placeholder: (context, url) => Center(child: CircularProgressIndicator(strokeWidth: 2, color: theme.secondaryColor)), // Placeholder while loading
-                      errorWidget: (context, url, error) => Image.asset(
-                        'assets/ICON-EMEC.png', // Fallback on error
-                        fit: BoxFit.contain,
+                  Stack(
+                    alignment: Alignment.topRight,
+                    children: [
+                      // Logo/Image
+                      SizedBox(
+                        width: width * 0.25,
+                        height: width * 0.15,
+                        child: exhibitor.image.isNotEmpty && (exhibitor.image.startsWith('http') || exhibitor.image.startsWith('https'))
+                            ? CachedNetworkImage(
+                          imageUrl: exhibitor.image,
+                          fit: BoxFit.contain,
+                          placeholder: (context, url) => Center(child: CircularProgressIndicator(strokeWidth: 2, color: theme.secondaryColor)),
+                          errorWidget: (context, url, error) => Image.asset(
+                            'assets/ICON-EMEC.png',
+                            fit: BoxFit.contain,
+                          ),
+                        )
+                            : Image.asset(
+                          'assets/ICON-EMEC.png',
+                          fit: BoxFit.contain,
+                        ),
                       ),
-                    )
-                        : Image.asset(
-                      'assets/ICON-EMEC.png', // Fallback for empty or non-URL images
-                      fit: BoxFit.contain,
-                    ),
+                    ],
                   ),
-/* Positioned(
-                    top: 0,
-                    right: 0,
-                    child: IconButton(
-                      icon: Icon(
-                        exhibitor.star ? Icons.star : Icons.star_border,
-                        color: exhibitor.star ? theme.secondaryColor : Colors.grey,
-                        size: width * 0.05,
-                      ),
-                      onPressed: () {
-                        setState(() {
-                          exhibitor.star = !exhibitor.star;
-                        });
-                      },
+                  SizedBox(height: height * 0.01),
+                  Text(
+                    exhibitor.title,
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: height * 0.018,
+                      fontWeight: FontWeight.bold,
+                      color: theme.blackColor,
                     ),
-                  ),*/
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 2.0),
+                  Text(
+                    exhibitor.adress.isNotEmpty ? exhibitor.adress : exhibitor.shortDiscriptions,
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: height * 0.014,
+                      color: theme.blackColor.withOpacity(0.7),
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
                 ],
               ),
-              SizedBox(height: height * 0.01),
-              Text(
-                exhibitor.title,
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: height * 0.018,
-                  fontWeight: FontWeight.bold,
-                  color: theme.blackColor,
-                ),
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-              ),
-              const SizedBox(height: 2.0),
-              Text(
-                exhibitor.adress.isNotEmpty ? exhibitor.adress : exhibitor.shortDiscriptions,
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: height * 0.014,
-                  color: theme.blackColor.withOpacity(0.7),
-                ),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ],
+            ),
           ),
-        ),
+
+          // 🚀 NEW: Category Text Banner at the top
+          Positioned(
+            top: 0.0, // Position on the edge of the Container (which has a 10.0 top margin)
+            left: 0,
+            right: width * 0.03, // Match the outer container's right margin
+            child: Center(
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10.0, vertical: 2.0),
+                decoration: BoxDecoration(
+                  color: borderColor, // Background color matches the border
+                  borderRadius: BorderRadius.circular(5.0),
+                  boxShadow: [
+                    BoxShadow(
+                      color: borderColor.withOpacity(0.4),
+                      blurRadius: 4,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: Text(
+                  // Display text in the requested format: "---DIAMOND---"
+                  '${categoryName ?? 'SPONSOR'}',
+                  style: TextStyle(
+                    color: theme.whiteColor, // White text for contrast
+                    fontWeight: FontWeight.bold,
+                    fontSize: 10.0,
+                    letterSpacing: 1.5,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

@@ -6,7 +6,7 @@ import 'package:emecexpo/model/exhibitors_model.dart';
 
 class ExhibitorApiService {
   // Use the provided API URL for edition 654
-  static const String _apiUrl = "https://buzzevents.co/api/edition/654/exposants";
+  static const String _apiUrl = "https://buzzevents.co/api/edition/1118/exposants";
 
   Future<List<ExhibitorsClass>> getExhibitors() async {
     try {
