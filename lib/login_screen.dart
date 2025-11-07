@@ -499,10 +499,10 @@ class _LoginStep2State extends State<LoginStep2> {
             mainAxisAlignment: MainAxisAlignment.start,
             children: [
               // Back button to return to Step 1
-              IconButton(
+/*              IconButton(
                 icon: Icon(Icons.arrow_back, color: theme.whiteColor),
                 onPressed: widget.onBack,
-              ),
+              ),*/
               Expanded(
                 child: Padding(
                   padding: const EdgeInsets.only(left: 8.0),
@@ -518,7 +518,7 @@ class _LoginStep2State extends State<LoginStep2> {
           const SizedBox(height: 16.0),
 
           Text(
-            'Enter the 6-digit password',
+            'Enter the password',
             textAlign: TextAlign.center,
             style: TextStyle(color: theme.whiteColor.withOpacity(0.8), fontSize: 16),
           ),
