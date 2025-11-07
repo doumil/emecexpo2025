@@ -6,7 +6,7 @@ import 'package:emecexpo/model/program_model.dart';
 
 class ProgramApiService {
   // Use the API endpoint you provided
-  static const String _apiUrl = 'https://buzzevents.co/api/edition/654/program';
+  static const String _apiUrl = 'https://buzzevents.co/api/edition/1118/program';
 
   Future<ProgramDataModel> fetchProgramDetails() async {
     final url = Uri.parse(_apiUrl);
