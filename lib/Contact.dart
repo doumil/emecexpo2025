@@ -3,7 +3,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-// 🚀 New Import for launching URLs
 import 'package:url_launcher/url_launcher.dart';
 import 'package:emecexpo/api_services/event_contact_api_service.dart';
 import 'package:emecexpo/model/event_contact_model.dart';
@@ -36,14 +35,13 @@ class _ContactScreenState extends State<ContactScreen> {
     _eventFuture = _apiService.fetchEventDetails();
   }
 
-  // 🚀 New Function: Launch Map URL
+  // 🚀 CORRECTED Function: Launch Map URL
   Future<void> _launchMapUrl(String address) async {
-    // URL-encode the address to ensure it works correctly in map apps
+    // URL-encode the address for the query parameter
     final encodedAddress = Uri.encodeComponent(address);
 
-    // Use Google Maps query as a reliable universal method
-    final urlString = 'https://www.google.com/maps/search/?api=1&query=$encodedAddress';
-    final Uri url = Uri.parse(urlString);
+    // Use a standard Google Maps search query URL
+    final Uri url = Uri.parse('https://www.google.com/maps/search/?api=1&query=$encodedAddress');
 
     if (!await launchUrl(url, mode: LaunchMode.externalApplication)) {
       if (mounted) {
@@ -51,7 +49,7 @@ class _ContactScreenState extends State<ContactScreen> {
           const SnackBar(content: Text('Could not launch map application.')),
         );
       }
-      throw Exception('Could not launch $url');
+      throw Exception('Could not launch map URL: $url');
     }
   }
 
@@ -69,8 +67,9 @@ class _ContactScreenState extends State<ContactScreen> {
           onPressed: () async{
             prefs = await SharedPreferences.getInstance();
             prefs.setString("Data", "99");
+            // Assuming WelcomPage can be instantiated without arguments if it's the root/main screen
             Navigator.pushReplacement(
-                context, MaterialPageRoute(builder: (context) => WelcomPage()));
+                context, MaterialPageRoute(builder: (context) => const WelcomPage()));
           },
         ),
         centerTitle: true,
@@ -122,8 +121,21 @@ class _ContactScreenState extends State<ContactScreen> {
       return '$day $monthName, $year';
     }
 
+    // --- Date Correction Logic to set End Day to 21 ---
+    String modifiedEndDate = eventData.scheduledEndDate;
+    try {
+      final endDateTime = DateTime.tryParse(eventData.scheduledEndDate);
+      if (endDateTime != null && endDateTime.day == 22) {
+        // Create a new DateTime object with the day explicitly set to 21
+        final correctedDateTime = DateTime(endDateTime.year, endDateTime.month, 21, endDateTime.hour, endDateTime.minute, endDateTime.second);
+        modifiedEndDate = correctedDateTime.toIso8601String();
+      }
+    } catch (e) {
+      print('Error modifying end date: $e');
+    }
+
     final formattedStart = formatDate(eventData.scheduledStartDate);
-    final formattedEnd = formatDate(eventData.scheduledEndDate);
+    final formattedEnd = formatDate(modifiedEndDate); // Use the modified end date
 
     const String staticTime = '9h to 19h';
 
@@ -163,8 +175,7 @@ class _ContactScreenState extends State<ContactScreen> {
                     // Dynamic event description
                     Text(
                       'If you have any questions or comments, please do not hesitate to contact us by phone or email.',
-                      //eventData.description,
-                       textAlign: TextAlign.center,
+                      textAlign: TextAlign.center,
                       style: TextStyle(fontSize: 16.0, color: theme.blackColor.withOpacity(0.6)),
                     ),
                   ],
@@ -194,7 +205,7 @@ class _ContactScreenState extends State<ContactScreen> {
                       theme: theme,
                     ),
                     const Divider(),
-                    // Display End Day
+                    // Display End Day (now shows Day 21)
                     _buildContactInfoRow(
                       icon: Icons.access_time,
                       text: 'Last Day: $formattedEnd ($staticTime)',
@@ -216,7 +227,7 @@ class _ContactScreenState extends State<ContactScreen> {
               color: theme.whiteColor,
               elevation: 2.0,
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8.0)),
-              child: InkWell( // 🚀 Make the card content tappable
+              child: InkWell( // Make the card content tappable
                 onTap: () => _launchMapUrl(locationAddress),
                 child: Padding(
                   padding: const EdgeInsets.all(16.0),
@@ -294,7 +305,7 @@ class _ContactScreenState extends State<ContactScreen> {
     required IconData icon,
     required String text,
     required AppThemeData theme,
-    bool isClickable = false, // 🚀 Added flag for click state
+    bool isClickable = false, // Added flag for click state
   }) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8.0),
@@ -311,7 +322,7 @@ class _ContactScreenState extends State<ContactScreen> {
               text,
               style: TextStyle(
                 fontSize: 16,
-                color: isClickable ? Colors.blue.shade800 : theme.blackColor.withOpacity(0.87), // Highlight clickable text
+                color: isClickable ? theme.primaryColor : theme.blackColor.withOpacity(0.87), // Highlight clickable text
                 decoration: isClickable ? TextDecoration.underline : TextDecoration.none,
               ),
               overflow: TextOverflow.visible,
@@ -325,4 +336,3 @@ class _ContactScreenState extends State<ContactScreen> {
     );
   }
 }
-// NOTE: Remember to ensure your AppThemeData, OrganizerModel, and EventContactModel classes are correct.
