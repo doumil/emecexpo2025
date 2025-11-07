@@ -5,13 +5,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import 'package:intl/date_symbol_data_local.dart';
-import 'package:provider/provider.dart'; // 👈 Needed for theme access
+import 'package:provider/provider.dart';
 
 // Assuming your model and API imports are correct
-import '../model/app_theme_data.dart';
-import '../model/speakers_model.dart';
-import '../providers/theme_provider.dart'; // 👈 ThemeProvider import
-import 'DetailSessionScreen.dart'; // 👈 Import the session detail screen
+import '../../api_services/speaker_api_service.dart'; // 👈 NEW: Import to access imageBaseUrl
+import '../../model/app_theme_data.dart';
+import '../../model/speakers_model.dart';
+import '../../providers/theme_provider.dart';
+import 'DetailSessionScreen.dart'; // Import the session detail screen
 
 // Constants assumed from speakers_model.dart
 const String kDefaultSpeakerImageUrl = 'https://buzzevents.co/uploads/ICON-EMEC.png';
@@ -45,12 +46,25 @@ class _DetailSpeakersScreenState extends State<DetailSpeakersScreen> {
   }
 
   Widget _getSpeakerImage(double radius) {
-    // ... (Image loading logic remains the same)
-    final String finalUrl = widget.speaker?.pic ?? kDefaultSpeakerImageUrl;
+    // 💡 Access the theme for background/placeholder color
+    final theme = Provider.of<ThemeProvider>(context, listen: false).currentTheme;
+
+    // Fetch the image base URL from the service
+    const String imageBaseUrl = SpeakerApiService.imageBaseUrl;
+
+    // Get the relative image path from the speaker object, default to a sensible file name
+    // Use the null-aware operator to safely access 'pic' and default if null
+    final String relativePicPath = widget.speaker?.pic ?? 'ICON-EMEC.png';
+
+    // Construct the full URL
+    // Only prepend the base URL if the pic path isn't already a full URL (though unlikely here)
+    final String finalUrl = relativePicPath.isNotEmpty
+        ? imageBaseUrl + relativePicPath
+        : kDefaultSpeakerImageUrl; // Fallback URL
 
     return CircleAvatar(
       radius: radius,
-      backgroundColor: Colors.grey[200],
+      backgroundColor: Colors.grey[200], // Default grey background
       child: ClipOval(
         child: Image.network(
           finalUrl,
@@ -59,16 +73,22 @@ class _DetailSpeakersScreenState extends State<DetailSpeakersScreen> {
           height: radius * 2,
           loadingBuilder: (context, child, loadingProgress) {
             if (loadingProgress == null) return child;
-            return Center(
-              child: CircularProgressIndicator(
-                value: loadingProgress.expectedTotalBytes != null
-                    ? loadingProgress.cumulativeBytesLoaded / loadingProgress.expectedTotalBytes!
-                    : null,
+            return Container(
+              width: radius * 2,
+              height: radius * 2,
+              color: Colors.grey[200], // Light grey placeholder
+              child: Center(
+                child: CircularProgressIndicator(
+                  value: loadingProgress.expectedTotalBytes != null
+                      ? loadingProgress.cumulativeBytesLoaded / loadingProgress.expectedTotalBytes!
+                      : null,
+                  color: theme.secondaryColor, // Use accent color for loading indicator
+                ),
               ),
             );
           },
           errorBuilder: (context, error, stackTrace) => Image.asset(
-            'assets/placeholder.png', // Placeholder asset path
+            'assets/placeholder.png', // Fallback to a local asset
             fit: BoxFit.cover,
             width: radius * 2,
             height: radius * 2,
@@ -78,11 +98,11 @@ class _DetailSpeakersScreenState extends State<DetailSpeakersScreen> {
     );
   }
 
-  // ... (_loadData, _filterSessionsByDate, _onWillPop methods remain the same)
   _loadData() async {
     isLoading = true;
     if (mounted) setState(() {});
 
+    // Ensure sessions list is not null
     _allSessions = widget.speaker?.sessions ?? [];
 
     _apiDateFilters = widget.periods.map((dateString) {
@@ -98,6 +118,7 @@ class _DetailSpeakersScreenState extends State<DetailSpeakersScreen> {
       setState(() {
         isLoading = false;
         _filteredSessions = List.from(_allSessions);
+        // Automatically select the first date filter if available
         if (_apiDateFilters.isNotEmpty) {
           _filterSessionsByDate(0);
         } else {
@@ -118,6 +139,7 @@ class _DetailSpeakersScreenState extends State<DetailSpeakersScreen> {
 
     final String selectedFilterText = _apiDateFilters[index].toLowerCase();
 
+    // NOTE: This format must match the input format in your JSON/model for dateDeb/dateFin
     final DateFormat sessionInputFormat = DateFormat('MM/dd/yyyy h:mm a');
 
     List<ProgramSession> sessionsForDay = _allSessions.where((session) {
@@ -167,7 +189,6 @@ class _DetailSpeakersScreenState extends State<DetailSpeakersScreen> {
       ),
     )) ?? false;
   }
-  // ... (end of methods that remain the same)
 
   @override
   Widget build(BuildContext context) {
@@ -175,11 +196,14 @@ class _DetailSpeakersScreenState extends State<DetailSpeakersScreen> {
     final themeProvider = Provider.of<ThemeProvider>(context);
     final theme = themeProvider.currentTheme;
 
-    final String speakerName = widget.speaker?.prenom != null && widget.speaker!.nom != null
+    // Safely retrieve speaker details using null checks and defaults
+    final String speakerName = widget.speaker != null
         ? "${widget.speaker!.prenom} ${widget.speaker!.nom}"
         : "Speaker Name";
     final String speakerPoste = widget.speaker?.poste ?? "Speaker Position/Poste";
+    // Use the 'company' getter from the Speakers model
     final String speakerCompany = widget.speaker?.company ?? "Company";
+    // Handle potentially null biography (the source of the original error)
     final String speakerBio = widget.speaker?.biographie ?? "No biography available.";
 
     // Theme color variables for consistency
@@ -188,22 +212,19 @@ class _DetailSpeakersScreenState extends State<DetailSpeakersScreen> {
 
     return Scaffold(
       extendBodyBehindAppBar: false,
-      // ✅ Use theme.whiteColor as the background
       backgroundColor: theme.whiteColor,
       appBar: AppBar(
-        // ✅ Use theme.primaryColor for the AppBar background
         backgroundColor: theme.primaryColor,
         elevation: 0,
         leading: IconButton(
-          // ✅ Use theme.whiteColor for the back button
           icon: const Icon(Icons.arrow_back_ios, color: Colors.white),
           onPressed: () => Navigator.of(context).pop(),
         ),
         actions: [
-          /*IconButton(
+          /*
+          IconButton(
             icon: Icon(
               _isSpeakerFavorite ? Icons.star : Icons.star_border,
-              // ✅ Use theme.whiteColor for the icon color
               color: Colors.white,
             ),
             onPressed: () {
@@ -212,7 +233,8 @@ class _DetailSpeakersScreenState extends State<DetailSpeakersScreen> {
                 widget.speaker?.isFavorite = _isSpeakerFavorite;
               });
             },
-          ),*/
+          ),
+          */
         ],
       ),
       body: FadeInDown(
@@ -226,7 +248,6 @@ class _DetailSpeakersScreenState extends State<DetailSpeakersScreen> {
                 width: double.infinity,
                 padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 30),
                 decoration: BoxDecoration(
-                  // ✅ Use theme.whiteColor
                   color: theme.whiteColor,
                   boxShadow: [
                     BoxShadow(
@@ -242,7 +263,7 @@ class _DetailSpeakersScreenState extends State<DetailSpeakersScreen> {
                     Stack(
                       alignment: Alignment.bottomRight,
                       children: [
-                        _getSpeakerImage(50),
+                        _getSpeakerImage(50), // 👈 Image loading is fixed here
                         Positioned(
                           right: 0,
                           bottom: 0,
@@ -260,19 +281,16 @@ class _DetailSpeakersScreenState extends State<DetailSpeakersScreen> {
                     const SizedBox(height: 15),
                     Text(
                       speakerName,
-                      // ✅ Use theme.blackColor
                       style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: primaryContentColor),
                     ),
                     const SizedBox(height: 5),
                     Text(
                       speakerPoste,
-                      // ✅ Use theme.blackColor (with opacity)
                       style: TextStyle(fontSize: 16, color: primaryContentColor.withOpacity(0.6)),
                       textAlign: TextAlign.center,
                     ),
                     Text(
                       speakerCompany,
-                      // ✅ Use theme.blackColor (with opacity)
                       style: TextStyle(fontSize: 16, color: primaryContentColor.withOpacity(0.6)),
                       textAlign: TextAlign.center,
                     ),
@@ -288,13 +306,11 @@ class _DetailSpeakersScreenState extends State<DetailSpeakersScreen> {
                   children: [
                     Text(
                       "Biography",
-                      // ✅ Use theme.blackColor
                       style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: primaryContentColor),
                     ),
                     const SizedBox(height: 10),
                     Text(
                       speakerBio,
-                      // ✅ Use theme.blackColor (with opacity)
                       style: TextStyle(fontSize: 16, color: primaryContentColor.withOpacity(0.7), height: 1.5),
                       textAlign: TextAlign.justify,
                     ),
@@ -308,7 +324,6 @@ class _DetailSpeakersScreenState extends State<DetailSpeakersScreen> {
                 padding: const EdgeInsets.symmetric(horizontal: 20.0),
                 child: Text(
                   "Speaker's Sessions",
-                  // ✅ Use theme.blackColor
                   style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: primaryContentColor),
                 ),
               ),
@@ -328,7 +343,7 @@ class _DetailSpeakersScreenState extends State<DetailSpeakersScreen> {
                     children: List.generate(_apiDateFilters.length, (index) {
                       return Padding(
                         padding: const EdgeInsets.only(right: 10.0),
-                        child: _buildDateButton(_apiDateFilters[index], index, theme), // 💡 Pass theme
+                        child: _buildDateButton(_apiDateFilters[index], index, theme),
                       );
                     }),
                   ),
@@ -338,7 +353,7 @@ class _DetailSpeakersScreenState extends State<DetailSpeakersScreen> {
 
               // List of Sessions
               isLoading
-                  ? Center(child: Padding(padding: const EdgeInsets.all(30.0), child: CircularProgressIndicator(color: accentColor))) // ✅ Use theme.secondaryColor
+                  ? Center(child: Padding(padding: const EdgeInsets.all(30.0), child: CircularProgressIndicator(color: accentColor)))
                   : _allSessions.isEmpty
                   ? Center(
                 child: Padding(
@@ -371,7 +386,7 @@ class _DetailSpeakersScreenState extends State<DetailSpeakersScreen> {
                   final session = _filteredSessions[index];
                   return Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 8.0),
-                    child: _buildSessionCard(session, theme), // 💡 Pass theme
+                    child: _buildSessionCard(session, theme),
                   );
                 },
               ),
@@ -383,10 +398,8 @@ class _DetailSpeakersScreenState extends State<DetailSpeakersScreen> {
     );
   }
 
-  // 💡 Updated to accept theme
   Widget _buildDateButton(String date, int index, AppThemeData theme) {
     bool isSelected = _selectedDateIndex == index;
-    // Theme colors
     final Color selectedColor = theme.primaryColor;
     final Color unselectedColor = Colors.grey[200]!;
 
@@ -397,14 +410,12 @@ class _DetailSpeakersScreenState extends State<DetailSpeakersScreen> {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 8),
         decoration: BoxDecoration(
-          // ✅ Use theme.primaryColor
           color: isSelected ? selectedColor : unselectedColor,
           borderRadius: BorderRadius.circular(8),
         ),
         child: Text(
           date,
           style: TextStyle(
-            // ✅ Use theme.whiteColor and theme.blackColor
             color: isSelected ? theme.whiteColor : theme.blackColor.withOpacity(0.87),
             fontWeight: FontWeight.bold,
           ),
@@ -413,13 +424,11 @@ class _DetailSpeakersScreenState extends State<DetailSpeakersScreen> {
     );
   }
 
-  // 💡 Updated to accept theme
   Widget _buildSessionCard(ProgramSession session, AppThemeData theme) {
     final DateFormat sessionInputFormat = DateFormat('MM/dd/yyyy h:mm a');
     String timeRange = '';
     String datePart = '';
 
-    // Theme color variables
     final Color accentColor = theme.secondaryColor;
     final Color primaryContentColor = theme.blackColor;
 
@@ -438,7 +447,6 @@ class _DetailSpeakersScreenState extends State<DetailSpeakersScreen> {
 
     return Card(
       elevation: 3,
-      // ✅ Use theme.whiteColor as card background
       color: theme.whiteColor,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
       child: Padding(
@@ -450,14 +458,12 @@ class _DetailSpeakersScreenState extends State<DetailSpeakersScreen> {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
               decoration: BoxDecoration(
-                // ✅ Use a lighter version of secondary color for the tag background
                 color: accentColor.withOpacity(0.1),
                 borderRadius: BorderRadius.circular(5),
               ),
               child: Text(
                 tagLabel,
                 style: TextStyle(
-                  // ✅ Use accentColor for the tag text
                   color: accentColor,
                   fontSize: 12,
                   fontWeight: FontWeight.bold,
@@ -471,7 +477,7 @@ class _DetailSpeakersScreenState extends State<DetailSpeakersScreen> {
               style: TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.bold,
-                color: primaryContentColor, // ✅ Use theme.blackColor
+                color: primaryContentColor,
               ),
             ),
             const SizedBox(height: 5),
@@ -524,7 +530,6 @@ class _DetailSpeakersScreenState extends State<DetailSpeakersScreen> {
                   );
                 },
                 style: OutlinedButton.styleFrom(
-                  // ✅ Use accentColor
                   foregroundColor: accentColor,
                   side: BorderSide(color: accentColor),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),

@@ -27,11 +27,11 @@ class _SpeakersScreenState extends State<SpeakersScreen> {
   final SpeakerApiService _apiService = SpeakerApiService();
   late SharedPreferences prefs;
   List<Speakers> _allSpeakers = [];
-  List<Speakers> _recommendedSpeakers = [];
+  List<Speakers> _recommendedSpeakers = []; // Will be empty with the new API
   List<Speakers> _otherSpeakers = [];
   List<Speakers> _filteredOtherSpeakers = [];
 
-  List<String> _eventPeriods = [];
+  List<String> _eventPeriods = []; // Will be empty with the new API
 
   bool isLoading = true;
   TextEditingController _searchController = TextEditingController();
@@ -55,14 +55,27 @@ class _SpeakersScreenState extends State<SpeakersScreen> {
       isLoading = true;
     });
     try {
-      final SpeakersDataModel speakerData = await _apiService.fetchSpeakersWithSessions();
+      final SpeakersDataModel speakerData = await _apiService
+          .fetchSpeakersWithSessions();
 
       setState(() {
         _allSpeakers = speakerData.speakers;
-        _eventPeriods = speakerData.periods;
+        _eventPeriods = speakerData.periods; // Likely an empty array [] now
 
-        _recommendedSpeakers = _allSpeakers.where((s) => s.isRecommended).toList();
+        // ⚠️ Since the new API doesn't specify 'isRecommended', all fetched speakers
+        // are initially considered 'other speakers' if the model defaults isRecommended to false.
+        // If the model had a dedicated 'isRecommended' field that was true, this would change.
+        // Based on your model update, it defaults to false, so all go to _otherSpeakers.
+        _recommendedSpeakers = _allSpeakers
+            .where((s) => s.isRecommended)
+            .toList();
         _otherSpeakers = _allSpeakers.where((s) => !s.isRecommended).toList();
+
+        // If _recommendedSpeakers is empty (which it will be with the new API),
+        // ensure _otherSpeakers gets all of them.
+        if (_recommendedSpeakers.isEmpty) {
+          _otherSpeakers = _allSpeakers;
+        }
 
         _otherSpeakers.sort((a, b) => a.nom.compareTo(b.nom));
 
@@ -92,14 +105,18 @@ class _SpeakersScreenState extends State<SpeakersScreen> {
     List<Speakers> searchResults = currentSourceList.where((speaker) {
       final fullName = "${speaker.prenom} ${speaker.nom}".toLowerCase();
       final poste = speaker.poste.toLowerCase();
-      // ✅ FINAL CORRECTION: Use 'speaker.company' for the search filter
+      // ✅ Using the 'company' getter for the search filter
       final company = speaker.company.toLowerCase();
 
-      return fullName.contains(query) || poste.contains(query) || company.contains(query);
+      return fullName.contains(query) ||
+          poste.contains(query) ||
+          company.contains(query);
     }).toList();
 
     if (_isFavoriteFilterActive) {
-      searchResults = searchResults.where((speaker) => speaker.isFavorite).toList();
+      searchResults = searchResults
+          .where((speaker) => speaker.isFavorite)
+          .toList();
     }
 
     setState(() {
@@ -123,66 +140,78 @@ class _SpeakersScreenState extends State<SpeakersScreen> {
 
   Future<bool> _onWillPop() async {
     return (await showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Êtes-vous sûr'),
-        content: const Text('Voulez-vous quitter une application'),
-        actions: <Widget>[
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Non'),
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('Êtes-vous sûr'),
+            content: const Text('Voulez-vous quitter une application'),
+            actions: <Widget>[
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(false),
+                child: const Text('Non'),
+              ),
+              TextButton(
+                onPressed: () => SystemNavigator.pop(),
+                child: const Text('Oui '),
+              ),
+            ],
           ),
-          TextButton(
-            onPressed: () => SystemNavigator.pop(),
-            child: const Text('Oui '),
-          ),
-        ],
-      ),
-    )) ??
+        )) ??
         false;
   }
 
   // Helper widget to display network image with loading and error handling
-  Widget _buildSpeakerImage(String? imageUrl, double size, Color placeholderColor) {
-    final String finalUrl = imageUrl?.isNotEmpty == true ? imageUrl! : 'https://buzzevents.co/uploads/ICON-EMEC.png';
+  Widget _buildSpeakerImage(
+    String? imageUrl,
+    double size,
+    Color placeholderColor,
+  ) {
+    // 🚀 NEW LOGIC: Construct full URL using imageBaseUrl from service
+    final String imageBaseUrl = SpeakerApiService.imageBaseUrl;
+    // Default image if imageUrl is null or empty. Use a sensible default relative path.
+    final String defaultPic = 'ICON-EMEC.png';
+    final String imagePath = imageUrl?.isNotEmpty == true
+        ? imageUrl!
+        : defaultPic;
+
+    // Construct the full URL by combining base URL and image path
+    final String finalUrl = imageBaseUrl + imagePath;
+
     final bool isNetworkImage = finalUrl.startsWith('http');
 
     return ClipOval(
       child: isNetworkImage
           ? Image.network(
-        finalUrl,
-        width: size,
-        height: size,
-        fit: BoxFit.cover,
-        errorBuilder: (context, error, stackTrace) => Image.asset(
-          'assets/placeholder.png', // Final local asset fallback
-          width: size,
-          height: size,
-          fit: BoxFit.cover,
-        ),
-        loadingBuilder: (context, child, loadingProgress) {
-          if (loadingProgress == null) return child;
-          return Container(
-            width: size,
-            height: size,
-            color: placeholderColor,
-            child: Center(
-              child: CircularProgressIndicator(
-                color: placeholderColor.computeLuminance() > 0.5 ? Colors.black54 : Colors.white70,
-                value: loadingProgress.expectedTotalBytes != null
-                    ? loadingProgress.cumulativeBytesLoaded / loadingProgress.expectedTotalBytes!
-                    : null,
+              finalUrl,
+              width: size,
+              height: size,
+              fit: BoxFit.cover,
+              errorBuilder: (context, error, stackTrace) => Image.asset(
+                'assets/placeholder.png', // Final local asset fallback
+                width: size,
+                height: size,
+                fit: BoxFit.cover,
               ),
-            ),
-          );
-        },
-      )
-          : Image.asset(
-        finalUrl,
-        width: size,
-        height: size,
-        fit: BoxFit.cover,
-      ),
+              loadingBuilder: (context, child, loadingProgress) {
+                if (loadingProgress == null) return child;
+                return Container(
+                  width: size,
+                  height: size,
+                  color: placeholderColor,
+                  child: Center(
+                    child: CircularProgressIndicator(
+                      color: placeholderColor.computeLuminance() > 0.5
+                          ? Colors.black54
+                          : Colors.white70,
+                      value: loadingProgress.expectedTotalBytes != null
+                          ? loadingProgress.cumulativeBytesLoaded /
+                                loadingProgress.expectedTotalBytes!
+                          : null,
+                    ),
+                  ),
+                );
+              },
+            )
+          : Image.asset(finalUrl, width: size, height: size, fit: BoxFit.cover),
     );
   }
 
@@ -196,7 +225,9 @@ class _SpeakersScreenState extends State<SpeakersScreen> {
 
     Map<String, List<Speakers>> groupedOtherSpeakers = {};
     for (var speaker in _filteredOtherSpeakers) {
-      String firstLetter = speaker.nom.isNotEmpty ? speaker.nom[0].toUpperCase() : '#';
+      String firstLetter = speaker.nom.isNotEmpty
+          ? speaker.nom[0].toUpperCase()
+          : '#';
       if (!groupedOtherSpeakers.containsKey(firstLetter)) {
         groupedOtherSpeakers[firstLetter] = [];
       }
@@ -209,41 +240,51 @@ class _SpeakersScreenState extends State<SpeakersScreen> {
       child: Scaffold(
         backgroundColor: theme.whiteColor, // 💡 THEMED
         appBar: AppBar(
-          backgroundColor: theme.primaryColor, // 💡 THEMED
+          backgroundColor: theme.primaryColor,
+          // 💡 THEMED
           elevation: 0,
           title: Text(
             'Speakers',
-            style: TextStyle(color: theme.whiteColor, fontWeight: FontWeight.bold), // 💡 THEMED
+            style: TextStyle(
+              color: theme.whiteColor,
+              fontWeight: FontWeight.bold,
+            ), // 💡 THEMED
           ),
           leading: IconButton(
-            icon: Icon(Icons.arrow_back_ios, color: theme.whiteColor), // 💡 THEMED
-            onPressed: () async{
+            icon: Icon(Icons.arrow_back_ios, color: theme.whiteColor),
+            // 💡 THEMED
+            onPressed: () async {
               prefs = await SharedPreferences.getInstance();
               prefs.setString("Data", "99");
               Navigator.pushReplacement(
-                  context, MaterialPageRoute(builder: (context) => const WelcomPage()));
+                context,
+                MaterialPageRoute(builder: (context) => const WelcomPage()),
+              );
             },
           ),
           centerTitle: true,
           actions: [
-            IconButton(
-              icon: Icon(Icons.tune, color: theme.whiteColor), // 💡 THEMED
-              onPressed: () {
-                // Handle filter
-              },
-            ),
-            IconButton(
-              icon: Icon(
-                _isFavoriteFilterActive ? Icons.star : Icons.star_border,
-                color: _isFavoriteFilterActive ? theme.secondaryColor : theme.whiteColor, // 💡 THEMED
-              ),
-              onPressed: _toggleFavoriteFilter,
-            ),
+            /*      IconButton(
+       icon: Icon(Icons.tune, color: theme.whiteColor), // 💡 THEMED
+       onPressed: () {
+        // Handle filter
+       },
+      ),
+      IconButton(
+       icon: Icon(
+        _isFavoriteFilterActive ? Icons.star : Icons.star_border,
+        color: _isFavoriteFilterActive ? theme.secondaryColor : theme.whiteColor, // 💡 THEMED
+       ),
+       onPressed: _toggleFavoriteFilter,
+      ),*/
           ],
           bottom: PreferredSize(
             preferredSize: Size.fromHeight(height * 0.08),
             child: Padding(
-              padding: EdgeInsets.symmetric(horizontal: width * 0.04, vertical: height * 0.01),
+              padding: EdgeInsets.symmetric(
+                horizontal: width * 0.04,
+                vertical: height * 0.01,
+              ),
               child: Container(
                 decoration: BoxDecoration(
                   color: theme.whiteColor.withOpacity(0.2), // 💡 THEMED
@@ -254,12 +295,21 @@ class _SpeakersScreenState extends State<SpeakersScreen> {
                   decoration: InputDecoration(
                     // 🎯 UPDATED HINT TEXT
                     hintText: 'Recherche par nom, poste ou compagnie',
-                    hintStyle: TextStyle(color: theme.whiteColor.withOpacity(0.7)), // 💡 THEMED
-                    prefixIcon: Icon(Icons.search, color: theme.whiteColor), // 💡 THEMED
+                    hintStyle: TextStyle(
+                      color: theme.whiteColor.withOpacity(0.7),
+                    ),
+                    // 💡 THEMED
+                    prefixIcon: Icon(Icons.search, color: theme.whiteColor),
+                    // 💡 THEMED
                     border: InputBorder.none,
-                    contentPadding: EdgeInsets.symmetric(vertical: height * 0.015),
+                    contentPadding: EdgeInsets.symmetric(
+                      vertical: height * 0.015,
+                    ),
                   ),
-                  style: TextStyle(fontSize: height * 0.02, color: theme.whiteColor), // 💡 THEMED
+                  style: TextStyle(
+                    fontSize: height * 0.02,
+                    color: theme.whiteColor,
+                  ), // 💡 THEMED
                 ),
               ),
             ),
@@ -267,67 +317,28 @@ class _SpeakersScreenState extends State<SpeakersScreen> {
         ),
         body: isLoading
             ? Center(
-          child: SpinKitThreeBounce(
-            color: theme.secondaryColor, // 💡 THEMED
-            size: 30.0,
-          ),
-        )
+                child: SpinKitThreeBounce(
+                  color: theme.secondaryColor, // 💡 THEMED
+                  size: 30.0,
+                ),
+              )
             : FadeInDown(
-          duration: const Duration(milliseconds: 500),
-          child: SingleChildScrollView(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // --- Recommended Speakers Section ---
-                if (_recommendedSpeakers.isNotEmpty)
-                  Padding(
-                    padding: EdgeInsets.fromLTRB(width * 0.04, height * 0.02, width * 0.04, height * 0.01),
-                    child: Text(
-                      'Recommended',
-                      style: TextStyle(
-                        fontSize: height * 0.02,
-                        fontWeight: FontWeight.bold,
-                        color: theme.blackColor, // 💡 THEMED
-                      ),
-                    ),
-                  ),
-                if (_recommendedSpeakers.isNotEmpty)
-                  SizedBox(
-                    height: height * 0.22,
-                    child: ListView.builder(
-                      scrollDirection: Axis.horizontal,
-                      padding: EdgeInsets.symmetric(horizontal: width * 0.04),
-                      itemCount: _recommendedSpeakers.length,
-                      itemBuilder: (context, index) {
-                        return _buildRecommendedSpeakerCard(_recommendedSpeakers[index], width, height, theme);
-                      },
-                    ),
-                  ),
-                SizedBox(height: height * 0.02),
-
-                // --- Other Speakers (Grouped List) Section ---
-                if (_filteredOtherSpeakers.isEmpty)
-                  Center(
-                    child: Padding(
-                      padding: const EdgeInsets.all(20.0),
-                      child: Text(
-                        _searchController.text.isNotEmpty
-                            ? "No speakers found for your search."
-                            : (_isFavoriteFilterActive ? "No favorited speakers to display." : "No speakers to display."),
-                        style: TextStyle(color: Colors.grey[600], fontSize: 16), // 💡 STANDARD GREY
-                        textAlign: TextAlign.center,
-                      ),
-                    ),
-                  )
-                else
-                  ...sortedKeys.map((letter) {
-                    return Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
+                duration: const Duration(milliseconds: 500),
+                child: SingleChildScrollView(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // --- Recommended Speakers Section ---
+                      if (_recommendedSpeakers.isNotEmpty)
                         Padding(
-                          padding: EdgeInsets.fromLTRB(width * 0.04, height * 0.02, width * 0.04, height * 0.01),
+                          padding: EdgeInsets.fromLTRB(
+                            width * 0.04,
+                            height * 0.02,
+                            width * 0.04,
+                            height * 0.01,
+                          ),
                           child: Text(
-                            letter,
+                            'Recommended',
                             style: TextStyle(
                               fontSize: height * 0.02,
                               fontWeight: FontWeight.bold,
@@ -335,28 +346,102 @@ class _SpeakersScreenState extends State<SpeakersScreen> {
                             ),
                           ),
                         ),
-                        ListView.builder(
-                          shrinkWrap: true,
-                          physics: const NeverScrollableScrollPhysics(),
-                          padding: EdgeInsets.symmetric(horizontal: width * 0.04),
-                          itemCount: groupedOtherSpeakers[letter]!.length,
-                          itemBuilder: (context, index) {
-                            return _buildSpeakerListItem(groupedOtherSpeakers[letter]![index], width, height, theme);
-                          },
+                      if (_recommendedSpeakers.isNotEmpty)
+                        SizedBox(
+                          height: height * 0.22,
+                          child: ListView.builder(
+                            scrollDirection: Axis.horizontal,
+                            padding: EdgeInsets.symmetric(
+                              horizontal: width * 0.04,
+                            ),
+                            itemCount: _recommendedSpeakers.length,
+                            itemBuilder: (context, index) {
+                              return _buildRecommendedSpeakerCard(
+                                _recommendedSpeakers[index],
+                                width,
+                                height,
+                                theme,
+                              );
+                            },
+                          ),
                         ),
-                      ],
-                    );
-                  }).toList(),
-              ],
-            ),
-          ),
-        ),
+                      SizedBox(height: height * 0.02),
+
+                      // --- Other Speakers (Grouped List) Section ---
+                      if (_filteredOtherSpeakers.isEmpty)
+                        Center(
+                          child: Padding(
+                            padding: const EdgeInsets.all(20.0),
+                            child: Text(
+                              _searchController.text.isNotEmpty
+                                  ? "No speakers found for your search."
+                                  : (_isFavoriteFilterActive
+                                        ? "No favorited speakers to display."
+                                        : "No speakers to display."),
+                              style: TextStyle(
+                                color: Colors.grey[600],
+                                fontSize: 16,
+                              ),
+                              // 💡 STANDARD GREY
+                              textAlign: TextAlign.center,
+                            ),
+                          ),
+                        )
+                      else
+                        ...sortedKeys.map((letter) {
+                          return Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Padding(
+                                padding: EdgeInsets.fromLTRB(
+                                  width * 0.04,
+                                  height * 0.02,
+                                  width * 0.04,
+                                  height * 0.01,
+                                ),
+                                child: Text(
+                                  letter,
+                                  style: TextStyle(
+                                    fontSize: height * 0.02,
+                                    fontWeight: FontWeight.bold,
+                                    color: theme.blackColor, // 💡 THEMED
+                                  ),
+                                ),
+                              ),
+                              ListView.builder(
+                                shrinkWrap: true,
+                                physics: const NeverScrollableScrollPhysics(),
+                                padding: EdgeInsets.symmetric(
+                                  horizontal: width * 0.04,
+                                ),
+                                itemCount: groupedOtherSpeakers[letter]!.length,
+                                itemBuilder: (context, index) {
+                                  return _buildSpeakerListItem(
+                                    groupedOtherSpeakers[letter]![index],
+                                    width,
+                                    height,
+                                    theme,
+                                  );
+                                },
+                              ),
+                            ],
+                          );
+                        }).toList(),
+                    ],
+                  ),
+                ),
+              ),
       ),
     );
   }
 
   // Widget for Recommended Speaker Cards (horizontal scroll)
-  Widget _buildRecommendedSpeakerCard(Speakers speaker, double width, double height, dynamic theme) {
+  Widget _buildRecommendedSpeakerCard(
+    Speakers speaker,
+    double width,
+    double height,
+    dynamic theme,
+  ) {
     return Container(
       width: width * 0.35,
       margin: EdgeInsets.only(right: width * 0.03),
@@ -376,7 +461,12 @@ class _SpeakersScreenState extends State<SpeakersScreen> {
         onTap: () {
           Navigator.push(
             context,
-            MaterialPageRoute(builder: (context) => DetailSpeakersScreen(speaker: speaker, periods: _eventPeriods)),
+            MaterialPageRoute(
+              builder: (context) => DetailSpeakersScreen(
+                speaker: speaker,
+                periods: _eventPeriods,
+              ),
+            ),
           );
         },
         child: Padding(
@@ -387,19 +477,24 @@ class _SpeakersScreenState extends State<SpeakersScreen> {
               Stack(
                 alignment: Alignment.topRight,
                 children: [
-                  _buildSpeakerImage(speaker.pic, width * 0.18, Colors.grey[200]!), // 💡 STANDARD GREY Placeholder
-                  Positioned(
-                    top: 0,
-                    right: 0,
-                    child: IconButton(
-                      icon: Icon(
-                        speaker.isFavorite ? Icons.star : Icons.star_border,
-                        color: speaker.isFavorite ? theme.secondaryColor : Colors.grey[500], // 💡 THEMED/STANDARD GREY
-                        size: width * 0.05,
-                      ),
-                      onPressed: () => _toggleFavorite(speaker),
-                    ),
+                  _buildSpeakerImage(
+                    speaker.pic,
+                    width * 0.18,
+                    Colors.grey[200]!,
                   ),
+                  // 💡 STANDARD GREY Placeholder
+                  /*Positioned(
+          top: 0,
+          right: 0,
+          child: IconButton(
+           icon: Icon(
+            speaker.isFavorite ? Icons.star : Icons.star_border,
+            color: speaker.isFavorite ? theme.secondaryColor : Colors.grey[500], // 💡 THEMED/STANDARD GREY
+            size: width * 0.05,
+           ),
+           onPressed: () => _toggleFavorite(speaker),
+          ),
+         ),*/
                 ],
               ),
               SizedBox(height: height * 0.01),
@@ -415,7 +510,7 @@ class _SpeakersScreenState extends State<SpeakersScreen> {
                 overflow: TextOverflow.ellipsis,
               ),
               const SizedBox(height: 2.0),
-              // ✅ FINAL CORRECTION: Use 'speaker.company' for company name
+              // ✅ Using the 'company' getter for company name
               if (speaker.company.isNotEmpty)
                 Text(
                   speaker.company,
@@ -446,23 +541,34 @@ class _SpeakersScreenState extends State<SpeakersScreen> {
   }
 
   // Widget for Speaker List Items (vertical list)
-  Widget _buildSpeakerListItem(Speakers speaker, double width, double height, dynamic theme) {
+  Widget _buildSpeakerListItem(
+    Speakers speaker,
+    double width,
+    double height,
+    dynamic theme,
+  ) {
     return InkWell(
       onTap: () {
         Navigator.push(
           context,
-          MaterialPageRoute(builder: (context) => DetailSpeakersScreen(speaker: speaker, periods: _eventPeriods)),
+          MaterialPageRoute(
+            builder: (context) =>
+                DetailSpeakersScreen(speaker: speaker, periods: _eventPeriods),
+          ),
         );
       },
       child: Container(
         padding: EdgeInsets.symmetric(vertical: height * 0.015),
         decoration: BoxDecoration(
-          border: Border(bottom: BorderSide(color: Colors.grey[200]!, width: 1.0)), // 💡 STANDARD GREY
+          border: Border(
+            bottom: BorderSide(color: Colors.grey[200]!, width: 1.0),
+          ), // 💡 STANDARD GREY
         ),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.center,
           children: <Widget>[
-            _buildSpeakerImage(speaker.pic, width * 0.12, Colors.grey[200]!), // 💡 STANDARD GREY Placeholder
+            _buildSpeakerImage(speaker.pic, width * 0.12, Colors.grey[200]!),
+            // 💡 STANDARD GREY Placeholder
             SizedBox(width: width * 0.04),
 
             Expanded(
@@ -480,7 +586,7 @@ class _SpeakersScreenState extends State<SpeakersScreen> {
                     overflow: TextOverflow.ellipsis,
                   ),
                   const SizedBox(height: 2.0),
-                  // ✅ FINAL CORRECTION: Use 'speaker.company' for company name
+                  // ✅ Using the 'company' getter for company name
                   if (speaker.company.isNotEmpty)
                     Text(
                       speaker.company,
@@ -505,14 +611,14 @@ class _SpeakersScreenState extends State<SpeakersScreen> {
               ),
             ),
 
-            IconButton(
-              icon: Icon(
-                speaker.isFavorite ? Icons.star : Icons.star_border,
-                color: speaker.isFavorite ? theme.secondaryColor : Colors.grey[500], // 💡 THEMED/STANDARD GREY
-                size: width * 0.06,
-              ),
-              onPressed: () => _toggleFavorite(speaker),
-            ),
+            /*IconButton(
+       icon: Icon(
+        speaker.isFavorite ? Icons.star : Icons.star_border,
+        color: speaker.isFavorite ? theme.secondaryColor : Colors.grey[500], // 💡 THEMED/STANDARD GREY
+        size: width * 0.06,
+       ),
+       onPressed: () => _toggleFavorite(speaker),
+      ),*/
           ],
         ),
       ),

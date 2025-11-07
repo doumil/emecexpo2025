@@ -1,35 +1,37 @@
 // lib/model/speakers_model.dart
 
-import 'dart:convert'; // Included for completeness, often needed for shared prefs or map operations
+import 'dart:convert';
 
 // --- Constants ---
+// NOTE: This constant is overridden by the imageBaseUrl in SpeakerApiService for network images.
 const String kDefaultSpeakerImageUrl = 'https://buzzevents.co/uploads/ICON-EMEC.png';
 
 
 // --- 1. Top-Level Data Model ---
 class SpeakersDataModel {
-  // The list of unique date strings (e.g., "YYYY-MM-DD")
+  // The list of unique date strings (will be empty with the new API)
   final List<String> periods;
   final List<Speakers> speakers;
 
   SpeakersDataModel({required this.periods, required this.speakers});
 
   factory SpeakersDataModel.fromJson(Map<String, dynamic> json) {
-    // Navigate to the 'data' object first
-    final data = json['data'] ?? {};
+    // This logic is designed for the OLD API structure but is simplified
+    // to work with the flat list returned by the new API in SpeakerApiService.
+    // The SpeakerApiService will handle extracting the 'data' list.
 
+    // Defaulting to empty lists as the new API only returns a flat array of speakers
+    // under 'data' and not the 'periods' structure.
     return SpeakersDataModel(
-      // Safely access 'periods'
-      periods: List<String>.from(data['periods'] ?? []),
-      // Safely access and map 'speakers'
-      speakers: (data['speakers'] as List? ?? [])
-          .map((i) => Speakers.fromJson(i))
-          .toList(),
+      periods: [],
+      speakers: [], // This will be manually populated in SpeakerApiService.
     );
   }
 }
 
 // --- 2. Program Session Model ---
+// This model is kept for compatibility, but the 'sessions' list in 'Speakers' will be empty
+// because the new API endpoint does not return this data.
 class ProgramSession {
   final int id;
   final String nom; // Session name
@@ -51,11 +53,11 @@ class ProgramSession {
 
   factory ProgramSession.fromJson(Map<String, dynamic> json) {
     return ProgramSession(
-      id: json['id'],
+      id: json['id'] ?? 0,
       nom: json['nom'] ?? '',
       dateDeb: json['date_deb'] ?? '',
       dateFin: json['date_fin'] ?? '',
-      emplacement: json['emplacement'],
+      emplacement: json['emplacement'] as String?,
       type: json['type'] ?? '',
       description: json['description'] ?? '',
     );
@@ -67,44 +69,50 @@ class Speakers {
   final int id;
   final String prenom;
   final String nom;
-  final String company;
+  // Note: The API key is 'compagnie', mapped to 'company' here.
+  final String compagnie;
   final String poste;
-  final String? pic;
-  final String? biographie;
+  final String? pic;          // 🎯 Made nullable
+  final String? biographie;   // 🎯 Made nullable
   bool isFavorite;
-  // ✅ FIX: Added to resolve the error in SpeakersScreen.dart. Defaulted to false.
-  final bool isRecommended;
-  // API uses 'programs' key for speaker sessions
-  final List<ProgramSession> sessions;
+  final bool isRecommended;   // Defaulted to false since the new API doesn't provide it
+  final List<ProgramSession> sessions; // Will be empty list for the new API
 
   Speakers({
-    required this.id,
+    this.id = 0,
     required this.prenom,
     required this.nom,
-    required this.company,
+    required this.compagnie,
     required this.poste,
     this.pic,
     this.biographie,
     this.isFavorite = false,
     this.isRecommended = false,
-    required this.sessions,
+    this.sessions = const [],
   });
 
   factory Speakers.fromJson(Map<String, dynamic> json) {
+    // 💡 Null safety and default values applied
     return Speakers(
-      id: json['id'],
+      id: json['id'] ?? 0,
       prenom: json['prenom'] ?? '',
       nom: json['nom'] ?? '',
-      company: json['compagnie'] ?? '',
+      // Use 'compagnie' from API
+      compagnie: json['compagnie'] ?? '',
       poste: json['poste'] ?? '',
-      pic: json['pic'],
-      biographie: json['biographie'],
-      // Note: The key for sessions is 'programs' in the API response
+      // Directly cast to String? as recommended for potentially null fields
+      pic: json['pic'] as String?,
+      biographie: json['biographie'] as String?,
+      // Sessions will be an empty list as the new API doesn't return this data
       sessions: (json['programs'] as List? ?? [])
           .map((i) => ProgramSession.fromJson(i))
           .toList(),
-      // Since no field exists, we hardcode to false to satisfy the widget logic
-      isRecommended: false,
+      // Default local values if not present in API
+      isFavorite: json['isFavorite'] as bool? ?? false,
+      isRecommended: json['isRecommended'] as bool? ?? false,
     );
   }
+
+  // Getter for consistent naming in the UI (SpeakersScreen.dart uses this)
+  String get company => compagnie;
 }
