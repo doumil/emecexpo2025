@@ -1,3 +1,5 @@
+// lib/main.dart
+
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
@@ -411,29 +413,37 @@ class _WelcomPageState extends State<WelcomPage> {
         key: _scaffoldKey,
         body: container,
         endDrawer: Drawer(
-          child: SingleChildScrollView(
-            child: Container(
-              color: theme.primaryColor,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  MyHeaderDrawer(user: currentUser), // Pass the non-nullable user
-                  const SizedBox(height: 5.0),
-                  Consumer<MenuProvider>(
-                    builder: (context, menuProvider, child) {
-                      final menuConfig = menuProvider.menuConfig;
-                      if (menuConfig == null) {
-                        return const Center(child: CircularProgressIndicator());
-                      }
-                      return MyDrawerList(
-                        theme: themeProvider,
-                        menuConfig: menuConfig,
-                        onNavigate: _onNavigateToSection,
-                        currentSection: currentPage,
-                      );
-                    },
-                  ),
-                ],
+          // 💡 FIX APPLIED HERE: Wrap the drawer content in SafeArea.
+          // bottom: true ensures that bottom padding is applied to avoid the phone's navigation bar.
+          child: SafeArea(
+            top: true, // Keep the top padding to avoid the status bar
+            bottom: true, // This is the crucial fix for the navigation buttons
+            left: false,
+            right: false,
+            child: SingleChildScrollView(
+              child: Container(
+                color: theme.primaryColor,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    MyHeaderDrawer(user: currentUser, onLogout: () {  },), // Pass the non-nullable user
+                    const SizedBox(height: 5.0),
+                    Consumer<MenuProvider>(
+                      builder: (context, menuProvider, child) {
+                        final menuConfig = menuProvider.menuConfig;
+                        if (menuConfig == null) {
+                          return const Center(child: CircularProgressIndicator());
+                        }
+                        return MyDrawerList(
+                          theme: themeProvider,
+                          menuConfig: menuConfig,
+                          onNavigate: _onNavigateToSection,
+                          currentSection: currentPage,
+                        );
+                      },
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
