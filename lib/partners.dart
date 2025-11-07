@@ -6,7 +6,7 @@ import 'package:flutter/services.dart';
 import 'package:animate_do/animate_do.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_spinkit/flutter_spinkit.dart';
-import 'package:cached_network_image/cached_network_image.dart';
+// import 'package:cached_network_image/cached_network_image.dart'; // Using Image.network instead for unified fallback
 
 import 'package:emecexpo/providers/theme_provider.dart';
 import 'package:emecexpo/model/exhibitors_model.dart';
@@ -90,6 +90,48 @@ class _PartnersScreenState extends State<PartnersScreen> {
     )) ?? false;
   }
 
+  // 🚀 NEW HELPER: Image loading logic for partners (identical to sponsors, but separated for clarity)
+  Widget _buildPartnerImage(String? imageUrl, AppThemeData theme) {
+    // 🎯 Use the specific API fallback image URL
+    final String defaultApiImage = 'https://buzzevents.co/uploads/ICON-EMEC.png';
+
+    // Check if the partner image is valid; if not, use the API default.
+    final String finalUrl = imageUrl?.isNotEmpty == true &&
+        (imageUrl!.startsWith('http') || imageUrl.startsWith('https'))
+        ? imageUrl
+        : defaultApiImage;
+
+    // Use a fixed size for consistent appearance in the grid
+    const double iconSize = 50.0;
+
+    return Image.network(
+      finalUrl,
+      fit: BoxFit.contain,
+      // Error: Show a broken image icon if loading the final URL fails (even the default)
+      errorBuilder: (context, error, stackTrace) {
+        return Icon(
+          Icons.broken_image,
+          color: Colors.grey,
+          size: iconSize,
+        );
+      },
+      // Loading: Show a progress indicator while the image is loading
+      loadingBuilder: (context, child, loadingProgress) {
+        if (loadingProgress == null) return child;
+        return Center(
+          child: CircularProgressIndicator(
+            strokeWidth: 2,
+            color: theme.secondaryColor,
+            value: loadingProgress.expectedTotalBytes != null
+                ? loadingProgress.cumulativeBytesLoaded / loadingProgress.expectedTotalBytes!
+                : null,
+          ),
+        );
+      },
+    );
+  }
+
+
   @override
   Widget build(BuildContext context) {
     final theme = Provider.of<ThemeProvider>(context).currentTheme;
@@ -145,7 +187,7 @@ class _PartnersScreenState extends State<PartnersScreen> {
               style: TextStyle(color: Colors.grey),
             ),
             const SizedBox(height: 20),
-            ElevatedButton(
+            /*ElevatedButton(
               onPressed: _loadPartnersData,
               style: ElevatedButton.styleFrom(
                 backgroundColor: theme.secondaryColor,
@@ -154,7 +196,7 @@ class _PartnersScreenState extends State<PartnersScreen> {
                 'Try Again',
                 style: TextStyle(color: theme.whiteColor),
               ),
-            ),
+            ),*/
           ],
         ),
       );
@@ -176,11 +218,11 @@ class _PartnersScreenState extends State<PartnersScreen> {
     );
   }
 
-  // Widget for a single partner item with the flat, bordered design and GestureDetector
+  // Updated widget: uses the new _buildPartnerImage helper
   Widget _buildPartnerGridItem(ExhibitorsClass partner, AppThemeData theme) {
     return GestureDetector( // 🎯 WRAP with GestureDetector
       onTap: () {
-        // 🎯 CORRECT NAVIGATION: Passing the required 'exhibitorId' using the assumed correct field 'id'
+        // CORRECT NAVIGATION: Passing the required 'exhibitorId' using the assumed correct field 'id'
         Navigator.push(
             context,
             MaterialPageRoute(
@@ -208,24 +250,8 @@ class _PartnersScreenState extends State<PartnersScreen> {
         child: Padding(
           padding: const EdgeInsets.all(10.0),
           child: Center(
-            child: partner.image.isNotEmpty && (partner.image.startsWith('http') || partner.image.startsWith('https'))
-                ? CachedNetworkImage(
-              imageUrl: partner.image,
-              fit: BoxFit.contain,
-              placeholder: (context, url) => Center(child: CircularProgressIndicator(strokeWidth: 2, color: theme.secondaryColor)),
-              errorWidget: (context, url, error) {
-                return Icon(
-                  Icons.broken_image,
-                  color: Colors.grey,
-                  size: 50,
-                );
-              },
-            )
-                : Icon(
-              Icons.business,
-              color: Colors.grey,
-              size: 50,
-            ),
+            // 🚀 INTEGRATED THE NEW IMAGE LOGIC
+            child: _buildPartnerImage(partner.image, theme),
           ),
         ),
       ),
