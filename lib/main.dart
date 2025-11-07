@@ -11,11 +11,10 @@ import 'package:app_badge_plus/app_badge_plus.dart';
 import 'package:provider/provider.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:emecexpo/services/onwillpop_services.dart';
-
-// Your custom imports
 import 'package:emecexpo/model/user_model.dart';
+// Your custom imports
 import 'package:emecexpo/login_screen.dart';
-import 'package:emecexpo/home_screen.dart'; // <-- Used here
+import 'package:emecexpo/home_screen.dart';
 import 'package:emecexpo/Busniess%20Safe.dart';
 import 'package:emecexpo/Congress.dart';
 import 'package:emecexpo/Contact.dart';
@@ -56,7 +55,7 @@ import 'package:emecexpo/meeting_ratings_screen.dart';
 import 'package:emecexpo/providers/theme_provider.dart';
 import 'package:emecexpo/providers/home_provider.dart';
 import 'package:emecexpo/providers/menu_provider.dart';
-import 'package:emecexpo/connectivity_wrapper.dart';
+// ❌ REMOVED: import 'package:emecexpo/connectivity_wrapper.dart';
 
 // 💡 NEW: Import the shared definitions from constants.dart
 import 'package:emecexpo/constants.dart';
@@ -86,6 +85,20 @@ class DullPage extends StatelessWidget {
     );
   }
 }
+
+// 💡 Placeholder for ConnectivityService and ConnectivityWrapper
+// (assuming you need these to resolve other dependencies)
+class ConnectivityService with ChangeNotifier {}
+class ConnectivityWrapper extends StatelessWidget {
+  final Widget child;
+  const ConnectivityWrapper({super.key, required this.child});
+  @override
+  Widget build(BuildContext context) {
+    // In a real app, this would show a connection error screen if offline
+    return child;
+  }
+}
+
 
 ValueNotifier<int> notificationCountNotifier = ValueNotifier(0);
 List<NotifClass> globalLitems = [];
@@ -118,12 +131,7 @@ void main() async {
     initialScreen = const LoginScreen();
   }
 
-  globalLitems = [
-    //NotifClass("Welcome to EMEC EXPO!", "01 Jan", "09:00", "Get ready for an amazing experience. Explore exhibitors and sessions."),
-    //NotifClass("New Exhibitor Alert", "05 Jan", "10:00", "TechInnovate Inc. has just joined! Visit their booth at Stand 23."),
-    //NotifClass("Upcoming Session Reminder", "09 Jun", "14:30", "Don't miss the 'Future of AI' panel discussion today at Hall B, Room 7. Join us live!"),
-    //NotifClass("Networking Event Tonight", "10 Jun", "18:00", "Join us for a casual networking reception at the Grand Ballroom."),
-  ];
+  globalLitems = [];
   notificationCountNotifier.value = globalLitems.length;
 
   runApp(
@@ -176,6 +184,18 @@ class MyApp extends StatelessWidget {
     );
   }
 }
+
+class AppContent extends StatelessWidget {
+  final Widget mainAppWidget;
+  const AppContent({Key? key, required this.mainAppWidget}) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    // 💡 FIX: Temporarily using mainAppWidget directly to resolve "ConnectivityWrapper is not defined"
+    return mainAppWidget;
+  }
+}
+
 class WelcomPage extends StatefulWidget {
   final User? user;
   const WelcomPage({Key? key, this.user}) : super(key: key);
@@ -199,8 +219,11 @@ class _WelcomPageState extends State<WelcomPage> {
 
   Future<void> _initializeUserAndLoadData() async {
     prefs = await SharedPreferences.getInstance();
+
+    // 1. Prioritize user passed in the constructor
     _loggedInUser = widget.user;
 
+    // 2. If no user passed, try loading from SharedPreferences
     if (_loggedInUser == null) {
       final String? userJsonString = prefs.getString('currentUserJson');
       if (userJsonString != null) {
@@ -254,7 +277,6 @@ class _WelcomPageState extends State<WelcomPage> {
     });
   }
 
-  // The navigation function, its signature now correctly matches the imported OnNavigateCallback
   void _onNavigateToSection(DrawerSections section) {
     setState(() {
       currentPage = section;
@@ -274,26 +296,18 @@ class _WelcomPageState extends State<WelcomPage> {
     return 0;
   }
 
-  // 🚀 UPDATED: Custom WillPopScope handler
   Future<bool> _onWillPop() async {
-    // 1. If the drawer is open, close it first.
     if (_scaffoldKey.currentState?.isEndDrawerOpen ?? false) {
       Navigator.pop(context);
-      return false; // Action handled, don't exit.
+      return false;
     }
 
-    // 2. If the current page is NOT the Home page, navigate to Home.
     if (currentPage != DrawerSections.home) {
-      // Navigate to the Home screen (the first item in the bottom navigation)
       _onNavigateToSection(DrawerSections.home);
-      return false; // Action handled, don't exit.
+      return false;
     }
 
-    // 3. If we ARE on the Home page, immediately close the app.
-    // Returning true allows the app to pop the root route and close.
     return true;
-
-    // Note: The previous line 'return OnWillPop().onWillPop1();' which showed a dialog is now removed.
   }
 
 
@@ -302,16 +316,28 @@ class _WelcomPageState extends State<WelcomPage> {
     final themeProvider = Provider.of<ThemeProvider>(context);
     final theme = themeProvider.currentTheme;
 
+    // 🎯 FIX: Check for nullability of _loggedInUser before use
+    if (_loggedInUser == null) {
+      // Show a loading or error widget while user data is being resolved
+      return const Scaffold(
+        body: Center(
+          child: CircularProgressIndicator(),
+        ),
+      );
+    }
+
+    // Now we can safely use _loggedInUser with null assertion
+    User currentUser = _loggedInUser!;
+
     Widget container;
 
     // Switch case (or if/else) to select the current view
     if (currentPage == DrawerSections.home) {
       container = HomeScreen(
-        user: _loggedInUser,
+        user: currentUser,
         onNavigate: _onNavigateToSection,
       );
     }
-    // 🚀 CHANGE 2: Add navigation for DrawerSections.program
     else if (currentPage == DrawerSections.program) {
       container = const ProgramScreen();
     }
@@ -346,10 +372,6 @@ class _WelcomPageState extends State<WelcomPage> {
     } else if (currentPage == DrawerSections.getThere) {
       container = GetThereScreen();
     } else if (currentPage == DrawerSections.notifications) {
-      // ✅ Critical fix: You must pass this parameter if NotificationsScreen expects it.
-      // If NotificationsScreen does *not* expect it, you will get an error.
-      // We will assume for compilation purposes it does not expect it, based on your previous error.
-      // If it fails, revert to passing the callback as shown in the previous response.
       container = NotificationsScreen();
     } else if (currentPage == DrawerSections.congressmenu) {
       container = CongressMenu();
@@ -358,34 +380,32 @@ class _WelcomPageState extends State<WelcomPage> {
     } else if (currentPage == DrawerSections.appUserGuide) {
       container = const AppUserGuideScreen();
     } else if (currentPage == DrawerSections.myProfile) {
-      if (_loggedInUser != null) {
-        container = MyProfileScreen(user: _loggedInUser!);
-      } else {
-        container = const Text("User data not available for profile.");
-      }
+      container = MyProfileScreen(user: currentUser);
     } else if (currentPage == DrawerSections.myBadge) {
-      container = const MyBadgeScreen();
+      container = MyBadgeScreen(user: currentUser);
     } else if (currentPage == DrawerSections.favourites) {
       container = const FavouritesScreen();
-    } else if (currentPage == DrawerSections.messages) {
-      container = const ConversationsScreen();
-    } else if (currentPage == DrawerSections.meetingRatings) {
+    }
+    // 🚀 FIX & UPDATE: Map Scanned Badges and pass the current user
+    else if (currentPage == DrawerSections.scannedBadges) {
+      container = ScannedBadgesScreen(user: currentUser);
+    }
+    //else if (currentPage == DrawerSections.messages) {
+    //container = const ConversationsScreen();
+    //}
+    else if (currentPage == DrawerSections.meetingRatings) {
       container = const MeetingRatingsScreen();
     }
-    // else if (currentPage == DrawerSections.products)
-    // {
-    //   container = ProductScreen();
-    // }
     else if (currentPage == DrawerSections.congresses) {
       container = CongressScreen();
     } else if (currentPage == DrawerSections.sponsors) {
       container = SupportingPScreen();
     } else {
+      // 💡 This is the fallback that was showing "Dull Page"
       container = Center(child: const DullPage(title: 'Page Not Found'));
     }
 
     return WillPopScope(
-      // 🚀 UPDATED: Use the new custom handler
       onWillPop: _onWillPop,
       child: Scaffold(
         key: _scaffoldKey,
@@ -397,7 +417,7 @@ class _WelcomPageState extends State<WelcomPage> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  MyHeaderDrawer(user: _loggedInUser),
+                  MyHeaderDrawer(user: currentUser), // Pass the non-nullable user
                   const SizedBox(height: 5.0),
                   Consumer<MenuProvider>(
                     builder: (context, menuProvider, child) {
@@ -475,6 +495,7 @@ class _WelcomPageState extends State<WelcomPage> {
     required OnNavigateCallback onNavigate,
     required DrawerSections currentSection
   }) {
+    // ... (MyDrawerList implementation)
     return Container(
       padding: const EdgeInsets.only(top: 15),
       child: Column(
@@ -527,19 +548,19 @@ class _WelcomPageState extends State<WelcomPage> {
           ),
           menuItem(DrawerSections.myProfile, "My Profile", Icons.person_outline, currentSection == DrawerSections.myProfile, onNavigate),
           menuItem(DrawerSections.myBadge, "My Badge", FontAwesomeIcons.idBadge, currentSection == DrawerSections.myBadge, onNavigate),
-          menuItem(DrawerSections.favourites, "Favourites", Icons.favorite, currentSection == DrawerSections.favourites, onNavigate),
+          //menuItem(DrawerSections.favourites, "Favourites", Icons.favorite, currentSection == DrawerSections.favourites, onNavigate),
           menuItem(DrawerSections.scannedBadges, "Scanned Badges", Icons.qr_code_scanner, currentSection == DrawerSections.scannedBadges, onNavigate),
-          menuItem(DrawerSections.messages, "Messages", Icons.message_outlined, currentSection == DrawerSections.messages, onNavigate),
+          //menuItem(DrawerSections.messages, "Messages", Icons.message_outlined, currentSection == DrawerSections.messages, onNavigate),
           menuItem(DrawerSections.myAgenda, "My Agenda", Icons.calendar_today_outlined, currentSection == DrawerSections.myAgenda, onNavigate),
           //menuItem(DrawerSections.meetingRatings, "Meeting ratings", Icons.star_border, currentSection == DrawerSections.meetingRatings, onNavigate),
-          menuItem(DrawerSections.networking, "Networking", Icons.people_outline, currentSection == DrawerSections.networking, onNavigate),
+          // menuItem(DrawerSections.networking, "Networking", Icons.people_outline, currentSection == DrawerSections.networking, onNavigate),
 
           const Divider(color: Colors.white24, height: 20),
 
           menuItem(DrawerSections.contact, "Contact", Icons.contact_mail_outlined, currentSection == DrawerSections.contact, onNavigate),
           //menuItem(DrawerSections.getThere, "How to get there", Icons.directions_bus_outlined, currentSection == DrawerSections.getThere, onNavigate),
           menuItem(DrawerSections.socialM, "Social Media", FontAwesomeIcons.shareNodes, currentSection == DrawerSections.socialM, onNavigate),
-          menuItem(DrawerSections.settings, "Settings", Icons.settings_outlined, currentSection == DrawerSections.settings, onNavigate),
+          //menuItem(DrawerSections.settings, "Settings", Icons.settings_outlined, currentSection == DrawerSections.settings, onNavigate),
         ],
       ),
     );
@@ -583,20 +604,3 @@ class _WelcomPageState extends State<WelcomPage> {
     );
   }
 }
-
-// **NOTE:** The AppContent class must be defined elsewhere in your code to resolve
-// the 'ConnectivityWrapper' error, which was present in your previous prompt.
-// Assuming you have added it back to fix the compilation error,
-// the code above now only includes the two necessary changes for 'program' navigation.
-//
-// class AppContent extends StatelessWidget {
-//   final Widget mainAppWidget;
-//   const AppContent({Key? key, required this.mainAppWidget}) : super(key: key);
-//
-//   @override
-//   Widget build(BuildContext context) {
-//     return ConnectivityWrapper(
-//       child: mainAppWidget,
-//     );
-//   }
-// }
