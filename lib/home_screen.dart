@@ -187,6 +187,14 @@ class _HomeScreenState extends State<HomeScreen> {
     bool isWide = false,
   }) {
     final theme = themeProvider.currentTheme;
+
+    // 💡 FIX: Force center alignment if this is the wide 'My Badge' card.
+    // Otherwise, use center for standard cards, or start for other wide cards.
+    CrossAxisAlignment alignment = CrossAxisAlignment.center;
+    if (isWide && item.title != 'My Badge') {
+      alignment = CrossAxisAlignment.start;
+    }
+
     return GestureDetector(
       onTap: () {
         widget.onNavigate(item.section);
@@ -202,8 +210,7 @@ class _HomeScreenState extends State<HomeScreen> {
             horizontal: horizontalPadding, vertical: isWide ? 15 : 10),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
-          crossAxisAlignment:
-          isWide ? CrossAxisAlignment.start : CrossAxisAlignment.center,
+          crossAxisAlignment: alignment, // Use the determined alignment
           children: <Widget>[
             Icon(
               item.icon,
@@ -213,7 +220,7 @@ class _HomeScreenState extends State<HomeScreen> {
             SizedBox(height: isWide ? 12.0 : 8.0),
             Text(
               item.title,
-              textAlign: isWide ? TextAlign.left : TextAlign.center,
+              textAlign: alignment == CrossAxisAlignment.start ? TextAlign.left : TextAlign.center,
               style: TextStyle(
                 color: theme.whiteColor,
                 fontSize: fontSize,
@@ -255,17 +262,15 @@ class _HomeScreenState extends State<HomeScreen> {
         // --- Dynamic Layout Generation ---
         final List<Widget> menuWidgets = [];
         int index = 0;
-        final double hSpacing = width * 0.04;
+        final double hSpacing = width * 0.03;
         final double vSpacing = height * 0.025;
 
         if (itemCount > 0) {
-          // Check for the special 'Odd' layout for the first row:
-          // 1. If total items are Odd AND there are 3+ items, OR
-          // 2. If the first item is marked 'isCustomCard: true' AND there are 3+ items.
+          // Original layout logic: Special layout if total items are odd OR the first item is marked 'custom' (My Badge) AND there are 3+ items.
           bool isFirstRowSpecial = ((itemCount % 2 != 0) || allVisibleMenuItems[0].isCustomCard) && itemCount >= 3;
 
           if (isFirstRowSpecial) {
-            // Layout 1: Big Card (index 0) + 2 Small Cards (index 1, 2)
+            // Layout 1: Big Card (index 0 - My Badge) + 2 Small Cards (Floor Plan, Exhibitors)
             final bigCard = _buildFlexibleMenuCard(
               context: context,
               item: allVisibleMenuItems[index],
@@ -283,7 +288,7 @@ class _HomeScreenState extends State<HomeScreen> {
               cardHeight: height * 0.13,
               iconSize: 40,
               fontSize: 15.0,
-              horizontalPadding: width * 0.03,
+              horizontalPadding: width * 0.08,
               themeProvider: themeProvider,
             );
 
@@ -293,7 +298,7 @@ class _HomeScreenState extends State<HomeScreen> {
               cardHeight: height * 0.13,
               iconSize: 40,
               fontSize: 15.0,
-              horizontalPadding: width * 0.03,
+              horizontalPadding: width * 0.08,
               themeProvider: themeProvider,
             );
 
