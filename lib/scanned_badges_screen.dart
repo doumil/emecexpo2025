@@ -1,16 +1,23 @@
+// lib/scanned_badges_screen.dart (Final Working Code with My Badge Content, Border, and NO Margin)
+
 import 'package:flutter/material.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:flutter_spinkit/flutter_spinkit.dart';
-// 1. 🚀 ADD flutter_barcode_scanner import
-//import 'package:flutter_barcode_scanner/flutter_barcode_scanner.dart';
-import 'package:flutter/services.dart'; // Needed for PlatformException
+import 'package:flutter/foundation.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 
 import 'messages_screen.dart';
 import 'model/scanned_badge_model.dart';
-
+import 'api_services/scanned_user_api_service.dart';
+import 'data_services/scanned_badges_storage.dart';
+import 'qr_scanner_view.dart';
+import 'model/user_model.dart';
 
 class ScannedBadgesScreen extends StatefulWidget {
-  const ScannedBadgesScreen({super.key});
+  final User user;
+
+  const ScannedBadgesScreen({super.key,  required this.user});
 
   @override
   State<ScannedBadgesScreen> createState() => _ScannedBadgesScreenState();
@@ -26,21 +33,26 @@ class _ScannedBadgesScreenState extends State<ScannedBadgesScreen> with SingleTi
   List<ScannedBadge> _filteredIScannedBadges = [];
   List<ScannedBadge> _filteredScannedMeBadges = [];
 
+  final ScannedBadgesStorage _storage = ScannedBadgesStorage();
+  final ScannedUserApiService _apiService = ScannedUserApiService();
+
   bool _isLoading = true;
+  String? _qrCodeXml;
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
     _loadScannedBadges();
+    _loadQrCode();
     _searchController.addListener(_filterScannedBadges);
 
     _tabController.addListener(() {
       if (_tabController.indexIsChanging) {
+        // Automatically hide the keyboard when switching tabs
+        FocusScope.of(context).unfocus();
         _filterScannedBadges();
-        setState(() {
-          // Trigger a rebuild to update FAB visibility based on tab change
-        });
+        setState(() {});
       }
     });
   }
@@ -52,192 +64,186 @@ class _ScannedBadgesScreenState extends State<ScannedBadgesScreen> with SingleTi
     super.dispose();
   }
 
-  void _loadScannedBadges() async {
-    await Future.delayed(const Duration(seconds: 1));
-
+  Future<void> _loadQrCode() async {
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+    final String? xml = prefs.getString('qrCodeXml');
     setState(() {
-      _iScannedOriginalBadges = [
-        ScannedBadge(
-          name: 'Mr Alieu Jagne',
-          title: 'Founder CEO',
-          company: 'LocaleNLP',
-          profilePicturePath: 'assets/profile_alieu.png',
-          companyLogoPath: 'assets/logo_localenlp.png',
-          tags: ['EXHIBITOR', 'Startup'],
-          scanDateTime: DateTime(2025, 4, 15, 18, 14),
-          initials: 'AJ',
-        ),
-        ScannedBadge(
-          name: 'Othniel ATSE',
-          title: 'Technical Director',
-          company: 'IMPROTECH',
-          profilePicturePath: 'assets/profile_othniel.png',
-          companyLogoPath: 'assets/logo_improtech.png',
-          tags: ['EXHIBITOR', 'Tech'],
-          scanDateTime: DateTime(2025, 4, 14, 17, 44),
-          initials: 'OA',
-        ),
-        ScannedBadge(
-          name: 'Ms Zhor Yasmine Mahdi',
-          title: 'Data scientist',
-          company: 'Smartly AI',
-          profilePicturePath: null,
-          companyLogoPath: 'assets/logo_smartlyai.png',
-          tags: ['EXHIBITOR', 'AI'],
-          scanDateTime: DateTime(2025, 4, 14, 17, 13),
-          initials: 'ZM',
-        ),
-        ScannedBadge(
-          name: 'CHRISTOPHER APEdo Amah',
-          title: 'Startup Program Manager',
-          company: 'OVHcloud',
-          profilePicturePath: 'assets/profile_christopher.png',
-          companyLogoPath: 'assets/logo_ovhcloud.png',
-          tags: ['EXHIBITOR', 'Cloud'],
-          scanDateTime: DateTime(2025, 4, 14, 16, 22),
-          initials: 'CA',
-        ),
-      ];
+      _qrCodeXml = xml;
+    });
+  }
 
-      _scannedMeOriginalBadges = [
-        ScannedBadge(
-          name: 'Dr. Jane Doe',
-          title: 'Head of Research',
-          company: 'Innovate Labs',
-          profilePicturePath: 'assets/profile_jane.png',
-          companyLogoPath: 'assets/logo_innovate.png',
-          tags: ['Speaker', 'Visitor'],
-          scanDateTime: DateTime(2025, 4, 16, 10, 30),
-          initials: 'JD',
-        ),
-      ];
-
-      _filteredIScannedBadges = List.from(_iScannedOriginalBadges);
-      _filteredScannedMeBadges = List.from(_scannedMeOriginalBadges);
+  void _loadScannedBadges() async {
+    setState(() => _isLoading = true);
+    final List<ScannedBadge> loadedBadges = await _storage.loadIScannedBadges();
+    setState(() {
+      _iScannedOriginalBadges = loadedBadges;
+      _scannedMeOriginalBadges = [];
+      _filterScannedBadges();
       _isLoading = false;
     });
   }
 
   void _filterScannedBadges() {
     String query = _searchController.text.toLowerCase();
-
     _filteredIScannedBadges = _iScannedOriginalBadges.where((badge) {
-      final String searchableText = '${badge.name} ${badge.title} ${badge.company} ${badge.tags.join(' ')}'.toLowerCase();
+      final String searchableText = '${badge.name} ${badge.title} ${badge.company} ${badge.tags.join(' ')} ${badge.email}'.toLowerCase();
       return searchableText.contains(query);
     }).toList();
 
     _filteredScannedMeBadges = _scannedMeOriginalBadges.where((badge) {
-      final String searchableText = '${badge.name} ${badge.title} ${badge.company} ${badge.tags.join(' ')}'.toLowerCase();
+      final String searchableText = '${badge.name} ${badge.title} ${badge.company} ${badge.tags.join(' ')} ${badge.email}'.toLowerCase();
       return searchableText.contains(query);
     }).toList();
 
     setState(() {});
   }
 
-  // 2. 🚀 UPDATED _openQrScanner function
   Future<void> _openQrScanner() async {
-    // String scannedData = '';
-    //
-    // try {
-    //   // Use a visible color (e.g., secondary color from your AppBar, 0xff00c1c1)
-    //   scannedData = await FlutterBarcodeScanner.scanBarcode(
-    //     "#00c1c1",
-    //     "Annuler",
-    //     true,
-    //     ScanMode.QR,
-    //   );
-    // } on PlatformException catch (e) {
-    //   // Handle permission or other platform-specific errors
-    //   scannedData = 'Failed to get data from scan: $e';
-    //   Fluttertoast.showToast(
-    //     msg: 'Scan failed: ${e.message}',
-    //     toastLength: Toast.LENGTH_LONG,
-    //     gravity: ToastGravity.CENTER,
-    //   );
-    //   return; // Exit if an exception occurred
-    // }
-    //
-    // if (!mounted) return;
-    //
-    // if (scannedData == '-1') {
-    //   // User cancelled the scan
-    //   Fluttertoast.showToast(
-    //     msg: 'Scan cancelled.',
-    //     toastLength: Toast.LENGTH_SHORT,
-    //     gravity: ToastGravity.CENTER,
-    //   );
-    //   return;
-    // } else {
-    //   // Process the successfully scanned data
-    //   List<String> parts = scannedData.split(":");
-    //
-    //   // Example of expected format: "name:title:company:tag1,tag2:profilePath:companyLogoPath"
-    //   if (parts.length >= 3) {
-    //     String name = parts[0];
-    //     String title = parts.length > 1 ? parts[1] : 'Unknown Title';
-    //     String company = parts.length > 2 ? parts[2] : 'Unknown Company';
-    //     List<String> tags = parts.length > 3 && parts[3].isNotEmpty
-    //         ? parts[3].split(',')
-    //         : ['Scanned'];
-    //     // Use a safe check for the optional paths
-    //     String? profilePicturePath = parts.length > 4 && parts[4].isNotEmpty ? parts[4] : null;
-    //     String? companyLogoPath = parts.length > 5 && parts[5].isNotEmpty ? parts[5] : null;
-    //
-    //     String initials = '';
-    //     if (name.isNotEmpty) {
-    //       List<String> nameParts = name.split(' ');
-    //       if (nameParts.isNotEmpty) {
-    //         initials += nameParts[0][0];
-    //         if (nameParts.length > 1) {
-    //           initials += nameParts[nameParts.length - 1][0];
-    //         }
-    //       }
-    //     }
-    //     initials = initials.toUpperCase();
-    //
-    //     ScannedBadge newBadge = ScannedBadge(
-    //       name: name,
-    //       title: title,
-    //       company: company,
-    //       profilePicturePath: profilePicturePath,
-    //       companyLogoPath: companyLogoPath,
-    //       tags: tags,
-    //       scanDateTime: DateTime.now(),
-    //       initials: initials,
-    //     );
-    //
-    //     setState(() {
-    //       _iScannedOriginalBadges.add(newBadge);
-    //       _filterScannedBadges(); // Update filtered list immediately
-    //     });
-    //
-    //     Fluttertoast.showToast(
-    //       msg: 'QR code scanned for ${newBadge.name}',
-    //       toastLength: Toast.LENGTH_SHORT,
-    //       gravity: ToastGravity.CENTER,
-    //     );
-    //   } else {
-    //     Fluttertoast.showToast(
-    //       msg: 'Invalid QR code format. Expected "name:title:company:tags:profilePath:companyLogoPath"',
-    //       toastLength: Toast.LENGTH_LONG,
-    //       gravity: ToastGravity.CENTER,
-    //     );
-    //   }
-    // }
+    // [QR Scan logic remains unchanged]
+    debugPrint('--- [QR Scan] Opening Scanner ---');
+    final String? scannedData = await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => const QrScannerView(),
+      ),
+    );
+
+    if (!mounted) return;
+
+    if (scannedData == null || scannedData.isEmpty) {
+      Fluttertoast.showToast(msg: 'Scan cancelled or no data found.', toastLength: Toast.LENGTH_SHORT, gravity: ToastGravity.CENTER);
+      return;
+    }
+
+    String qrHash = scannedData;
+    if (scannedData.startsWith('http') || scannedData.contains('buzzevents.co')) {
+      final List<String> parts = scannedData.split('/');
+      if (parts.isNotEmpty) {
+        qrHash = parts.last;
+      } else {
+        Fluttertoast.showToast(msg: 'Invalid QR code format. Expected a hash or full URL.', toastLength: Toast.LENGTH_LONG, gravity: ToastGravity.CENTER);
+        return;
+      }
+    }
+
+    if (qrHash.length < 5 || qrHash.isEmpty) {
+      Fluttertoast.showToast(msg: 'Invalid or too short QR Hash extracted.', toastLength: Toast.LENGTH_LONG, gravity: ToastGravity.CENTER);
+      return;
+    }
+
+    Fluttertoast.showToast(msg: 'Fetching data for scanned user...', toastLength: Toast.LENGTH_SHORT, gravity: ToastGravity.CENTER);
+    final Map<String, dynamic> apiResult = await _apiService.getUserByQrHash(qrHash);
+
+    if (!mounted) return;
+
+    if (apiResult['success'] == true) {
+      final Map<String, dynamic>? userMap = apiResult['userMap'] as Map<String, dynamic>?;
+
+      if (userMap == null || userMap.isEmpty) {
+        Fluttertoast.showToast(msg: 'Failed to retrieve user data, response malformed or user not found.', toastLength: Toast.LENGTH_LONG, gravity: ToastGravity.CENTER);
+        return;
+      }
+
+      final User user = User.fromScannedJson(userMap);
+      final ScannedBadge newBadge = ScannedBadge.fromUser(user);
+
+      final isDuplicate = _iScannedOriginalBadges.any((b) => b.email == newBadge.email);
+
+      if (isDuplicate) {
+        Fluttertoast.showToast(msg: '${newBadge.name} has already been scanned.', toastLength: Toast.LENGTH_LONG, gravity: ToastGravity.CENTER);
+        return;
+      }
+
+      setState(() {
+        _iScannedOriginalBadges.insert(0, newBadge);
+        _filterScannedBadges();
+      });
+      await _storage.saveIScannedBadges(_iScannedOriginalBadges);
+
+      Fluttertoast.showToast(msg: 'QR code scanned successfully for ${newBadge.name}!', toastLength: Toast.LENGTH_SHORT, gravity: ToastGravity.CENTER);
+    } else {
+      final String errorMessage = apiResult['message'] ?? 'Failed to scan and retrieve user data.';
+      Fluttertoast.showToast(msg: errorMessage, toastLength: Toast.LENGTH_LONG, gravity: ToastGravity.CENTER);
+    }
   }
 
+  Widget _buildMyBadgeContent(double screenWidth, double screenHeight) {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(20.0),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          // 1. Display User Name
+          Text(
+            "${widget.user.prenom ?? ''} ${widget.user.nom ?? ''}",
+            style: const TextStyle(
+              fontSize: 24,
+              fontWeight: FontWeight.bold,
+              color: Color(0xff261350), // Use primary color
+            ),
+          ),
+          const SizedBox(height: 10),
+          // 2. Display Company
+          Text(
+            widget.user.societe ?? 'N/A',
+            style: const TextStyle(
+              fontSize: 18,
+              color: Colors.grey,
+            ),
+          ),
+          const SizedBox(height: 40),
+
+          // 3. Display QR Code (SVG from XML)
+          if (_qrCodeXml != null && _qrCodeXml!.isNotEmpty)
+            Container(
+              padding: const EdgeInsets.all(15),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(15),
+                boxShadow: [
+                  BoxShadow(
+                    blurRadius: 15,
+                    color: Colors.black.withOpacity(0.1),
+                    offset: const Offset(0, 5),
+                  )
+                ],
+              ),
+              child: SvgPicture.string(
+                _qrCodeXml!,
+                width: screenWidth * 0.5,
+                height: screenWidth * 0.5,
+              ),
+            )
+          else
+            const Padding(
+              padding: EdgeInsets.all(20.0),
+              child: Text(
+                "QR Code loading or not available. Please ensure verification was successful.",
+                style: TextStyle(color: Color(0xff261350)),
+              ),
+            ),
+
+          const SizedBox(height: 40),
+          const Text(
+            "Scan this badge to network!",
+            style: TextStyle(
+              fontStyle: FontStyle.italic,
+              color: Colors.grey,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
     final double screenWidth = MediaQuery.of(context).size.width;
     final double screenHeight = MediaQuery.of(context).size.height;
 
-    // Condition for displaying the "No Scans" image and text placeholder
-    bool showNoScansPlaceholder = (_tabController.index == 0) &&
+    bool showIScannedPlaceholder = (_tabController.index == 0) &&
         (_filteredIScannedBadges.isEmpty && _searchController.text.isEmpty);
 
-    // Condition for displaying the Floating Action Button ("Scan" button)
-    // This will now always be true when on the "I scanned" tab
     bool showFloatingScanButton = (_tabController.index == 0);
 
 
@@ -248,14 +254,7 @@ class _ScannedBadgesScreenState extends State<ScannedBadgesScreen> with SingleTi
         foregroundColor: Colors.white,
         centerTitle: true,
         elevation: 0,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.compare_arrows),
-            onPressed: () {
-              Fluttertoast.showToast(msg: "Sort/Filter action!");
-            },
-          ),
-        ],
+        actions: const [], // Removed action button
         bottom: PreferredSize(
           preferredSize: Size.fromHeight(screenHeight * 0.08),
           child: Padding(
@@ -291,15 +290,23 @@ class _ScannedBadgesScreenState extends State<ScannedBadgesScreen> with SingleTi
             ),
             child: TabBar(
               controller: _tabController,
+              // *** MARGIN IGNORED/REMOVED ***
+              indicatorPadding: EdgeInsets.zero,
               indicator: BoxDecoration(
                 borderRadius: BorderRadius.circular(8.0),
                 color: Colors.white,
+                border: Border(
+                  bottom: BorderSide(
+                    color: Colors.grey.shade400,
+                    width: 1.0,
+                  ),
+                ),
               ),
               labelColor: const Color(0xff261350),
               unselectedLabelColor: Colors.grey.shade700,
               tabs: const [
                 Tab(text: 'I scanned'),
-                Tab(text: 'Scanned me'),
+                Tab(text: 'My Badge'),
               ],
             ),
           ),
@@ -314,32 +321,37 @@ class _ScannedBadgesScreenState extends State<ScannedBadgesScreen> with SingleTi
                 : TabBarView(
               controller: _tabController,
               children: [
-                // 'I scanned' tab content
-                showNoScansPlaceholder
+                // ----------------------------------------------------
+                // TAB 1: 'I scanned' content
+                // ----------------------------------------------------
+                showIScannedPlaceholder
                     ? Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Image.asset(
-                        'assets/qr_placeholder.png',
-                        width: screenWidth * 0.4,
-                        height: screenWidth * 0.4,
-                        errorBuilder: (context, error, stackTrace) {
-                          return Icon(Icons.qr_code_2, size: screenWidth * 0.3, color: Colors.grey[400]);
-                        },
-                      ),
-                      const SizedBox(height: 20),
-                      const Text(
-                        "No Scans",
-                        style: TextStyle(color: Colors.black, fontSize: 18, fontWeight: FontWeight.bold),
-                        textAlign: TextAlign.center,
-                      ),
-                      const Text(
-                        "There are no scans yet",
-                        style: TextStyle(color: Colors.grey, fontSize: 16),
-                        textAlign: TextAlign.center,
-                      ),
-                    ],
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.symmetric(vertical: 20),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.qr_code_scanner,
+                          size: screenWidth * 0.4,
+                          color: const Color(0xff261350).withOpacity(0.5),
+                        ),
+                        const SizedBox(height: 20),
+                        const Text(
+                          "No Badges Scanned Yet",
+                          style: TextStyle(color: Colors.black, fontSize: 18, fontWeight: FontWeight.bold),
+                          textAlign: TextAlign.center,
+                        ),
+                        const Padding(
+                          padding: EdgeInsets.symmetric(horizontal: 40.0),
+                          child: Text(
+                            "Tap the 'Scan' button in the corner to start collecting contacts.",
+                            style: TextStyle(color: Colors.grey, fontSize: 16),
+                            textAlign: TextAlign.center,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 )
                     : _filteredIScannedBadges.isEmpty && _searchController.text.isNotEmpty
@@ -358,37 +370,26 @@ class _ScannedBadgesScreenState extends State<ScannedBadgesScreen> with SingleTi
                     return _buildScannedBadgeCard(badge, screenWidth, screenHeight);
                   },
                 ),
-                // 'Scanned me' tab content
-                _filteredScannedMeBadges.isEmpty && _searchController.text.isEmpty
+
+                // ----------------------------------------------------
+                // TAB 2: 'My Badge' content
+                // ----------------------------------------------------
+                _searchController.text.isNotEmpty
                     ? const Center(
                   child: Text(
-                    "No one has scanned your badge yet.",
+                    "Search is only supported in the 'I scanned' tab.",
                     style: TextStyle(color: Colors.grey, fontSize: 16),
                     textAlign: TextAlign.center,
                   ),
                 )
-                    : _filteredScannedMeBadges.isEmpty && _searchController.text.isNotEmpty
-                    ? const Center(
-                  child: Text(
-                    "No matching 'scanned me' badges found for your search.",
-                    style: TextStyle(color: Colors.grey, fontSize: 16),
-                    textAlign: TextAlign.center,
-                  ),
-                )
-                    : ListView.builder(
-                  padding: const EdgeInsets.all(10.0),
-                  itemCount: _filteredScannedMeBadges.length,
-                  itemBuilder: (context, index) {
-                    final badge = _filteredScannedMeBadges[index];
-                    return _buildScannedBadgeCard(badge, screenWidth, screenHeight);
-                  },
-                ),
+                // If search is empty, display the full badge content
+                    : _buildMyBadgeContent(screenWidth, screenHeight),
               ],
             ),
           ),
         ],
       ),
-      floatingActionButton: showFloatingScanButton // Use the new condition for FAB visibility
+      floatingActionButton: showFloatingScanButton
           ? Padding(
         padding: const EdgeInsets.only(bottom: 20.0, right: 10.0),
         child: FloatingActionButton.extended(
@@ -415,12 +416,7 @@ class _ScannedBadgesScreenState extends State<ScannedBadgesScreen> with SingleTi
   Widget _buildScannedBadgeCard(ScannedBadge badge, double screenWidth, double screenHeight) {
     return InkWell(
       onTap: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => MessagesScreen(recipientBadge: badge),
-          ),
-        );
+        // Tap action is currently commented out/removed
       },
       child: Card(
         margin: const EdgeInsets.symmetric(vertical: 8.0),
@@ -442,7 +438,7 @@ class _ScannedBadgesScreenState extends State<ScannedBadgesScreen> with SingleTi
                 ),
                 child: ClipOval(
                   child: badge.profilePicturePath != null && badge.profilePicturePath!.isNotEmpty
-                      ? Image.asset(
+                      ? Image.network(
                     badge.profilePicturePath!,
                     fit: BoxFit.cover,
                     errorBuilder: (context, error, stackTrace) {
@@ -492,7 +488,7 @@ class _ScannedBadgesScreenState extends State<ScannedBadgesScreen> with SingleTi
                             ),
                             child: ClipRRect(
                               borderRadius: BorderRadius.circular(5.0),
-                              child: Image.asset(
+                              child: Image.network(
                                 badge.companyLogoPath!,
                                 fit: BoxFit.contain,
                                 errorBuilder: (context, error, stackTrace) {
@@ -524,23 +520,7 @@ class _ScannedBadgesScreenState extends State<ScannedBadgesScreen> with SingleTi
                       overflow: TextOverflow.ellipsis,
                     ),
                     SizedBox(height: screenHeight * 0.01),
-                    Wrap(
-                      spacing: 5.0,
-                      runSpacing: 5.0,
-                      children: badge.tags.map((tag) {
-                        return Chip(
-                          label: Text(
-                            tag,
-                            style: TextStyle(fontSize: screenHeight * 0.014, color: Colors.black87),
-                          ),
-                          backgroundColor: Colors.grey[200],
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(5.0),
-                          ),
-                          padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 2.0),
-                        );
-                      }).toList(),
-                    ),
+                    // Removed badge tags
                     const SizedBox(height: 5),
                     Align(
                       alignment: Alignment.bottomRight,

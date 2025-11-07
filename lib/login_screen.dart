@@ -1,15 +1,20 @@
+// lib/login_screen.dart
+
 import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:provider/provider.dart'; // 💡 Import Provider
-import 'package:emecexpo/providers/theme_provider.dart'; // 💡 Import your ThemeProvider
+import 'package:provider/provider.dart';
+import 'package:emecexpo/providers/theme_provider.dart';
 import 'package:emecexpo/model/user_model.dart';
-import 'package:emecexpo/my_profile_screen.dart';
-import 'package:emecexpo/main.dart';
+import 'package:emecexpo/main.dart'; // Assuming WelcomPage is defined here
 import 'package:url_launcher/url_launcher.dart';
-import 'api_services/auth_api_service.dart';
+import 'api_services/auth_api_service.dart'; // Contains sendVerificationCode, verifyCode, and NEW: forgetPassword
+import 'model/app_theme_data.dart'; // Assuming this defines your theme structure
 
+// --- Step Enum for State Management ---
+enum LoginStep { enterEmail, verifyCode, forgetPassword }
+
+// --- Main Widget for Step Management ---
 class LoginScreen extends StatefulWidget {
   const LoginScreen({Key? key}) : super(key: key);
 
@@ -18,109 +23,271 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
-
+  // Shared state for the login flow
   final TextEditingController _emailController = TextEditingController();
-  final TextEditingController _passwordController = TextEditingController();
+  String? _validatedEmail; // Stores email after successful code send/forget password
+  LoginStep _currentStep = LoginStep.enterEmail;
+
+  void _goToStep2(String email) {
+    setState(() {
+      _validatedEmail = email;
+      _currentStep = LoginStep.verifyCode;
+    });
+  }
+
+  void _goToStep3() {
+    setState(() {
+      _currentStep = LoginStep.forgetPassword;
+      // Clear the email field when entering the forget password flow for a fresh start
+      _emailController.clear();
+    });
+  }
+
+  // Refactored to handle returning to step 1 from any other step
+  void _goToStep1() {
+    setState(() {
+      _validatedEmail = null;
+      _currentStep = LoginStep.enterEmail;
+      // Keep the email field cleared only if coming from forget password flow
+      if (_emailController.text.isNotEmpty && _emailController.text != _validatedEmail) {
+        _emailController.clear();
+      }
+    });
+  }
+
+  // Used by Step 3 (Forget Password) to transition to Step 2 (Verify)
+  void _goToStep2FromForget(String email) {
+    setState(() {
+      _validatedEmail = email;
+      _currentStep = LoginStep.verifyCode;
+    });
+  }
+
+
+  @override
+  void dispose() {
+    _emailController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+
+    Widget currentStepWidget;
+    switch (_currentStep) {
+      case LoginStep.enterEmail:
+        currentStepWidget = LoginStep1(
+          key: const ValueKey('step1'),
+          emailController: _emailController,
+          onSuccess: _goToStep2,
+        );
+        break;
+      case LoginStep.verifyCode:
+      // Ensure email is present before building Step 2
+        if (_validatedEmail == null) {
+          WidgetsBinding.instance.addPostFrameCallback((_) => _goToStep1());
+          currentStepWidget = const Center(child: CircularProgressIndicator());
+        } else {
+          currentStepWidget = LoginStep2(
+            key: const ValueKey('step2'),
+            email: _validatedEmail!,
+            onBack: _goToStep1, // Back button goes to step 1
+            onResendCode: _goToStep3, // Resend button now directs to the Forget Password flow
+          );
+        }
+        break;
+      case LoginStep.forgetPassword:
+        currentStepWidget = LoginStep3(
+          key: const ValueKey('step3'),
+          emailController: _emailController, // Use main controller for input
+          onSuccess: _goToStep2FromForget, // Success goes to verify code (Step 2)
+          onBack: _goToStep1, // Back button goes to step 1
+        );
+        break;
+    }
+
+    return _buildLoginBackground(
+      context,
+      Center(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(24.0),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: <Widget>[
+              // Logo/Header Area
+              Image.asset(
+                'assets/EMEC-LOGO.png',
+                height: 120,
+              ),
+              const SizedBox(height: 48.0),
+
+              // Step Widget
+              AnimatedSwitcher(
+                duration: const Duration(milliseconds: 300),
+                child: currentStepWidget,
+              ),
+              const SizedBox(height: 24.0),
+
+              // Footer Links
+              // 1. Forgot Password Link (Goes to Step 3)
+              TextButton(
+                onPressed: _goToStep3,
+                child: Text(
+                  'Forgot Password?',
+                  style: TextStyle(color: Provider.of<ThemeProvider>(context).currentTheme.secondaryColor),
+                ),
+              ),
+
+              // 2. Register Link
+              TextButton(
+                onPressed: () => _launchUrlRegister(),
+                child: Text(
+                  'Don\'t have an account? Register',
+                  style: TextStyle(color: Provider.of<ThemeProvider>(context).currentTheme.secondaryColor),
+                ),
+              ),
+
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  // --- Design Implementation (Full-Screen Background) ---
+  Widget _buildLoginBackground(BuildContext context, Widget child) {
+    final theme = Provider.of<ThemeProvider>(context).currentTheme;
+    return Scaffold(
+      backgroundColor: theme.primaryColor,
+      body: Stack(
+        children: [
+          // Background Image
+          Positioned.fill(
+            child: Container(
+              decoration: const BoxDecoration(
+                image: DecorationImage(
+                  image: AssetImage('assets/background_login.jpg'),
+                  fit: BoxFit.cover,
+                ),
+              ),
+            ),
+          ),
+          // Gradient Overlay
+          Positioned.fill(
+            child: Container(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    theme.blackColor.withOpacity(0.4),
+                    theme.blackColor.withOpacity(0.8),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          // Content
+          child,
+        ],
+      ),
+    );
+  }
+
+  Future<void> _launchUrlRegister() async {
+    final Uri url = Uri.parse('https://www.emecexpo.com/tickets/');
+    if (!await launchUrl(url, mode: LaunchMode.externalApplication)) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Could not launch ticket.')),
+        );
+      }
+      throw Exception('Could not launch url');
+    }
+  }
+}
+
+// =======================================================
+// --- STEP 1: Enter Email Only (Login) ---
+// =======================================================
+
+class LoginStep1 extends StatefulWidget {
+  final TextEditingController emailController;
+  final Function(String email) onSuccess;
+
+  const LoginStep1({
+    required Key key,
+    required this.emailController,
+    required this.onSuccess,
+  }) : super(key: key);
+
+  @override
+  _LoginStep1State createState() => _LoginStep1State();
+}
+
+class _LoginStep1State extends State<LoginStep1> {
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
   bool _isLoading = false;
-  bool _isPasswordVisible = false;
-  Future<void> _launchUrlRegister(String address) async {
-    // URL-encode the address to ensure it works correctly in map apps
-    final encodedAddress = Uri.encodeComponent(address);
+  final FocusNode _emailFocusNode = FocusNode();
 
-    // Use Google Maps query as a reliable universal method
-    final urlRegister = 'https://www.emecexpo.com/tickets/';
-    final Uri url = Uri.parse(urlRegister);
-    final urlForget = 'https://buzzevents.co/password/reset';
-    final Uri url1 = Uri.parse(urlForget);
-
-    if (!await launchUrl(url, mode: LaunchMode.externalApplication)) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Could not launch ticket .')),
-        );
-      }
-      throw Exception('Could not launch $url');
-    }
-  }
-  Future<void> _launchUrlReset(String address) async {
-    // URL-encode the address to ensure it works correctly in map apps
-    final encodedAddress = Uri.encodeComponent(address);
-    // Use Google Maps query as a reliable universal method
-    final urlRegister = 'https://buzzevents.co/password/reset';
-    final Uri url = Uri.parse(urlRegister);
-
-    if (!await launchUrl(url, mode: LaunchMode.externalApplication)) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Could not launch ticket .')),
-        );
-      }
-      throw Exception('Could not launch $url');
-    }
+  @override
+  void dispose() {
+    _emailFocusNode.dispose();
+    super.dispose();
   }
 
-  Future<void> _login() async {
-    if (!_formKey.currentState!.validate()) {
-      return;
-    }
+  Future<void> _sendCode() async {
+    // Prevent API call if local validation fails
+    if (!_formKey.currentState!.validate()) return;
+
+    // Hide keyboard while loading
+    FocusScope.of(context).unfocus();
 
     setState(() {
       _isLoading = true;
     });
 
-    try {
-      final AuthApiService authService = AuthApiService();
-      final Map<String, dynamic> result = await authService.loginUser(
-        _emailController.text,
-        _passwordController.text,
-      );
+    final AuthApiService authService = AuthApiService();
+    // 💡 API Call for LOGIN verification code
+    final Map<String, dynamic> result = await authService.sendVerificationCode(
+      widget.emailController.text,
+    );
 
-      if (result['success'] == true) {
-        final String? authToken = result['token'];
-        final User? loggedInUser = result['user'];
-
-        if (authToken != null && loggedInUser != null) {
-          final SharedPreferences prefs = await SharedPreferences.getInstance();
-          await prefs.setString('authToken', authToken);
-          await prefs.setString('currentUserJson', json.encode(loggedInUser.toJson()));
-
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Login Successful!')),
-          );
-
-          Navigator.of(context).pushAndRemoveUntil(
-            MaterialPageRoute(
-              builder: (context) => WelcomPage(user: loggedInUser),
-            ),
-                (Route<dynamic> route) => false,
-          );
-        } else {
-          _showErrorDialog(result['message'] ?? 'Login Failed: Missing token or user data.');
-        }
-      } else {
-        _showErrorDialog(result['message'] ?? 'An unknown error occurred during login.');
-      }
-    } catch (e) {
-      print('Error calling login service: $e');
-      _showErrorDialog('An unexpected client-side error occurred. Please try again.');
-    } finally {
+    if (mounted) {
       setState(() {
         _isLoading = false;
       });
+
+      if (result['success'] == true) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(result['message'] ?? 'Verification code sent to email.')),
+        );
+        widget.onSuccess(widget.emailController.text);
+      } else {
+        // Show error dialog with specific error message if API fails (e.g., email not found)
+        _showErrorDialog(
+          result['message'] ?? 'The provided email address is not registered.',
+        );
+      }
     }
   }
 
+  // Error dialog with clear field and refocus logic
   void _showErrorDialog(String message) {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Login Error'),
+        title: const Text('Authentication Error'),
         content: Text(message),
         actions: <Widget>[
           TextButton(
             onPressed: () {
               Navigator.of(ctx).pop();
+              // Clear the email field
+              widget.emailController.clear();
+              // Set focus back to the email field
+              _emailFocusNode.requestFocus();
             },
             child: const Text('Okay'),
           )
@@ -130,167 +297,494 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   @override
+  Widget build(BuildContext context) {
+    final theme = Provider.of<ThemeProvider>(context).currentTheme;
+
+    final Color inputFillColor = theme.whiteColor;
+    final Color inputTextColor = theme.blackColor;
+    final Color inputHintIconColor = theme.blackColor.withOpacity(0.6);
+    final Color borderColor = theme.whiteColor.withOpacity(0.5);
+
+    return Form(
+      key: _formKey,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(
+            'Sign In with your Email',
+            textAlign: TextAlign.center,
+            style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: theme.whiteColor),
+          ),
+          const SizedBox(height: 24.0),
+          // Email Input Field
+          TextFormField(
+            controller: widget.emailController,
+            focusNode: _emailFocusNode,
+            keyboardType: TextInputType.emailAddress,
+            style: TextStyle(color: inputTextColor),
+            decoration: InputDecoration(
+              filled: true,
+              fillColor: inputFillColor,
+              hintText: 'Write your email address',
+              hintStyle: TextStyle(color: inputHintIconColor),
+              prefixIcon: Icon(Icons.email, color: inputHintIconColor),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12.0),
+                borderSide: BorderSide(color: borderColor),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12.0),
+                borderSide: BorderSide(color: borderColor),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12.0),
+                borderSide: BorderSide(color: theme.secondaryColor, width: 2.0),
+              ),
+              contentPadding: const EdgeInsets.symmetric(vertical: 18.0, horizontal: 16.0),
+            ),
+            // STRICT EMAIL VALIDATION
+            validator: (value) {
+              if (value == null || value.isEmpty) {
+                return 'Please enter your email address';
+              }
+
+              // Strict regex check for a valid email format
+              final emailRegex = RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
+
+              if (!emailRegex.hasMatch(value)) {
+                return 'Please enter a valid email address (e.g., user@domain.com)';
+              }
+
+              return null;
+            },
+          ),
+          const SizedBox(height: 16.0),
+
+          // Generate One-Time Password Button
+          _isLoading
+              ? Center(child: CircularProgressIndicator(color: theme.secondaryColor))
+              : ElevatedButton(
+            onPressed: _sendCode,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: theme.primaryColor,
+              padding: const EdgeInsets.symmetric(vertical: 18.0),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12.0),
+              ),
+            ),
+            child: Text(
+              'Generate a one-time password',
+              style: TextStyle(
+                fontSize: 18.0,
+                color: theme.whiteColor,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// =======================================================
+// --- STEP 2: Verify Code (Common to Login/Forget) ---
+// =======================================================
+
+class LoginStep2 extends StatefulWidget {
+  final String email;
+  final VoidCallback onBack;
+  final VoidCallback onResendCode; // New callback for resend logic
+
+  const LoginStep2({
+    required Key key,
+    required this.email,
+    required this.onBack,
+    required this.onResendCode,
+  }) : super(key: key);
+
+  @override
+  _LoginStep2State createState() => _LoginStep2State();
+}
+
+class _LoginStep2State extends State<LoginStep2> {
+  final TextEditingController _codeController = TextEditingController();
+  final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
+  bool _isLoading = false;
+  final FocusNode _codeFocusNode = FocusNode();
+
+
+  void _showErrorDialog(String message) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Verification Error'),
+        content: Text(message),
+        actions: <Widget>[
+          TextButton(
+            onPressed: () {
+              Navigator.of(ctx).pop();
+              _codeController.clear();
+              _codeFocusNode.requestFocus();
+            },
+            child: const Text('Okay'),
+          )
+        ],
+      ),
+    );
+  }
+
+  Future<void> _verifyCodeAndLogin() async {
+    if (!_formKey.currentState!.validate()) return;
+
+    FocusScope.of(context).unfocus();
+
+    setState(() {
+      _isLoading = true;
+    });
+
+    final AuthApiService authService = AuthApiService();
+    final Map<String, dynamic> result = await authService.verifyCode(
+      widget.email,
+      _codeController.text,
+    );
+
+    if (mounted) {
+      setState(() {
+        _isLoading = false;
+      });
+
+      if (result['success'] == true) {
+        final User loggedInUser = result['user'];
+        // Save user data (if necessary, though not explicitly requested)
+        // For demonstration, we just navigate:
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Login Successful!')),
+        );
+
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute(
+            builder: (context) => WelcomPage(user: loggedInUser),
+          ),
+              (Route<dynamic> route) => false,
+        );
+      } else {
+        _showErrorDialog(result['message'] ?? 'Invalid verification code.');
+      }
+    }
+  }
+
+  @override
   void dispose() {
-    _emailController.dispose();
-    _passwordController.dispose();
+    _codeController.dispose();
+    _codeFocusNode.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    // 💡 Access the theme provider and get the current theme.
-    final themeProvider = Provider.of<ThemeProvider>(context);
-    final theme = themeProvider.currentTheme;
+    final theme = Provider.of<ThemeProvider>(context).currentTheme;
 
-    return Scaffold(
-      // ✅ Use a background color from the theme.
-      backgroundColor: theme.whiteColor,
-      body: Center(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24.0),
-          child: Form(
-            key: _formKey,
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: <Widget>[
-                // Logo or app icon
-                Image.asset(
-                  'assets/EMEC-LOGO.png',
-                  height: 120,
-                  // ✅ Conditionally color the logo based on the theme.
-                  //color: themeProvider.isDark ? theme.whiteColor : null,
-                ),
-                const SizedBox(height: 48.0),
-                TextFormField(
-                  controller: _emailController,
-                  keyboardType: TextInputType.emailAddress,
-                  decoration: InputDecoration(
-                    labelText: 'Email',
-                    hintText: 'Enter your email',
-                    // ✅ Use a color from the theme for the icon.
-                    prefixIcon: Icon(Icons.email, color: theme.blackColor),
-                    // ✅ Use a color from the theme for the label and hint.
-                    labelStyle: TextStyle(color: theme.blackColor),
-                    hintStyle: TextStyle(color: theme.blackColor.withOpacity(0.5)),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12.0),
-                      // ✅ Use a color from the theme for the border.
-                      borderSide: BorderSide(color: theme.blackColor.withOpacity(0.5)),
-                    ),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12.0),
-                      borderSide: BorderSide(color: theme.blackColor.withOpacity(0.5)),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12.0),
-                      // ✅ Use a color from the theme for the focused border.
-                      borderSide: BorderSide(color: theme.secondaryColor, width: 2.0),
-                    ),
-                    contentPadding: const EdgeInsets.symmetric(vertical: 16.0, horizontal: 16.0),
-                  ),
-                  // ✅ Use a color from the theme for the input text.
-                  style: TextStyle(color: theme.blackColor),
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return 'Please enter your email';
-                    }
-                    if (!value.contains('@')) {
-                      return 'Please enter a valid email';
-                    }
-                    return null;
-                  },
-                ),
-                const SizedBox(height: 16.0),
-                TextFormField(
-                  controller: _passwordController,
-                  obscureText: !_isPasswordVisible,
-                  decoration: InputDecoration(
-                    labelText: 'Password',
-                    hintText: 'Enter your password',
-                    // ✅ Use a color from the theme for the icons.
-                    prefixIcon: Icon(Icons.lock, color: theme.blackColor),
-                    suffixIcon: IconButton(
-                      icon: Icon(
-                        _isPasswordVisible ? Icons.visibility : Icons.visibility_off,
-                        color: theme.blackColor,
-                      ),
-                      onPressed: () {
-                        setState(() {
-                          _isPasswordVisible = !_isPasswordVisible;
-                        });
-                      },
-                    ),
-                    labelStyle: TextStyle(color: theme.blackColor),
-                    hintStyle: TextStyle(color: theme.blackColor.withOpacity(0.5)),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12.0),
-                      borderSide: BorderSide(color: theme.blackColor.withOpacity(0.5)),
-                    ),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12.0),
-                      borderSide: BorderSide(color: theme.blackColor.withOpacity(0.5)),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12.0),
-                      borderSide: BorderSide(color: theme.secondaryColor, width: 2.0),
-                    ),
-                    contentPadding: const EdgeInsets.symmetric(vertical: 16.0, horizontal: 16.0),
-                  ),
-                  style: TextStyle(color: theme.blackColor),
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return 'Please enter your password';
-                    }
-                    if (value.length < 6) {
-                      return 'Password must be at least 6 characters long';
-                    }
-                    return null;
-                  },
-                ),
-                const SizedBox(height: 24.0),
-                _isLoading
-                    ? Center(child: CircularProgressIndicator(color: theme.secondaryColor))
-                    : ElevatedButton(
-                  onPressed: _login,
-                  style: ElevatedButton.styleFrom(
-                    // ✅ Use a color from the theme for the button.
-                    backgroundColor: theme.primaryColor,
-                    padding: const EdgeInsets.symmetric(vertical: 16.0),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12.0),
-                    ),
-                  ),
+    final Color inputFillColor = theme.whiteColor;
+    final Color inputTextColor = theme.blackColor;
+    final Color inputHintIconColor = theme.blackColor.withOpacity(0.6);
+    final Color borderColor = theme.whiteColor.withOpacity(0.5);
+
+    return Form(
+      key: _formKey,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.start,
+            children: [
+              // Back button to return to Step 1
+              IconButton(
+                icon: Icon(Icons.arrow_back, color: theme.whiteColor),
+                onPressed: widget.onBack,
+              ),
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.only(left: 8.0),
                   child: Text(
-                    'Login',
-                    style: TextStyle(
-                      fontSize: 18.0,
-                      // ✅ Use a color from the theme for the button text.
-                      color: theme.whiteColor,
-                    ),
+                    'Code sent to: ${widget.email}',
+                    style: TextStyle(color: theme.whiteColor, fontSize: 16),
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
-                const SizedBox(height: 16.0),
-                TextButton(
-                  onPressed: () => _launchUrlReset(''),
-                  child: Text(
-                    'Forgot Password?',
-                    // ✅ Use a color from the theme for the accent text.
-                    style: TextStyle(color: theme.secondaryColor),
-                  ),
-                ),
-                TextButton(
-                  onPressed: () => _launchUrlRegister(''),
-                  child: Text(
-                    'Don\'t have an account? Register',
-                    // ✅ Use a color from the theme for the accent text.
-                    style: TextStyle(color: theme.secondaryColor),
-                  ),
-                ),
-              ],
+              ),
+            ],
+          ),
+          const SizedBox(height: 16.0),
+
+          Text(
+            'Enter the 6-digit password',
+            textAlign: TextAlign.center,
+            style: TextStyle(color: theme.whiteColor.withOpacity(0.8), fontSize: 16),
+          ),
+          const SizedBox(height: 8.0),
+
+          // Code Input Field
+          TextFormField(
+            controller: _codeController,
+            focusNode: _codeFocusNode,
+            keyboardType: TextInputType.text, // Normal keyboard for easy input
+            textAlign: TextAlign.center,
+            style: TextStyle(color: inputTextColor, fontSize: 24, fontWeight: FontWeight.bold),
+            decoration: InputDecoration(
+              filled: true,
+              fillColor: inputFillColor,
+              hintText: 'Password',
+              hintStyle: TextStyle(color: inputHintIconColor),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12.0),
+                borderSide: BorderSide(color: borderColor),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12.0),
+                borderSide: BorderSide(color: borderColor),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12.0),
+                borderSide: BorderSide(color: theme.secondaryColor, width: 2.0),
+              ),
+              contentPadding: const EdgeInsets.symmetric(vertical: 18.0, horizontal: 16.0),
+            ),
+            validator: (value) {
+              if (value == null || value.isEmpty) {
+                return 'Please enter the verification code';
+              }
+              if (value.length != 6) {
+                return 'Code must be 6 digits';
+              }
+              return null;
+            },
+          ),
+          const SizedBox(height: 24.0),
+
+          // Verify Button
+          _isLoading
+              ? Center(child: CircularProgressIndicator(color: theme.secondaryColor))
+              : ElevatedButton(
+            onPressed: _verifyCodeAndLogin,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: theme.primaryColor,
+              padding: const EdgeInsets.symmetric(vertical: 18.0),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12.0),
+              ),
+            ),
+            child: Text(
+              'Verify and Login',
+              style: TextStyle(
+                fontSize: 18.0,
+                color: theme.whiteColor,
+              ),
             ),
           ),
-        ),
+
+          const SizedBox(height: 16.0),
+          // Resend/Forget Password Link
+          TextButton(
+            onPressed: widget.onResendCode, // New action goes to forget password flow
+            child: Text(
+              'Didn\'t receive the code? Resend / Forgot Password',
+              style: TextStyle(color: theme.secondaryColor),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// =======================================================
+// --- STEP 3: Forget Password (New) ---
+// =======================================================
+
+class LoginStep3 extends StatefulWidget {
+  final TextEditingController emailController;
+  final Function(String email) onSuccess;
+  final VoidCallback onBack;
+
+  const LoginStep3({
+    required Key key,
+    required this.emailController,
+    required this.onSuccess,
+    required this.onBack,
+  }) : super(key: key);
+
+  @override
+  _LoginStep3State createState() => _LoginStep3State();
+}
+
+class _LoginStep3State extends State<LoginStep3> {
+  final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
+  bool _isLoading = false;
+  final FocusNode _emailFocusNode = FocusNode();
+
+  @override
+  void dispose() {
+    _emailFocusNode.dispose();
+    super.dispose();
+  }
+
+  Future<void> _requestNewCode() async {
+    if (!_formKey.currentState!.validate()) return;
+
+    FocusScope.of(context).unfocus();
+
+    setState(() {
+      _isLoading = true;
+    });
+
+    final AuthApiService authService = AuthApiService();
+    // 💡 API Call for FORGET PASSWORD (Requests a NEW verification code)
+    final Map<String, dynamic> result = await authService.forgetPassword(
+      widget.emailController.text,
+    );
+
+    if (mounted) {
+      setState(() {
+        _isLoading = false;
+      });
+
+      if (result['success'] == true) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(result['message'] ?? 'A new verification code has been sent.')),
+        );
+        // On success, go to Step 2 to verify the NEW code
+        widget.onSuccess(widget.emailController.text);
+      } else {
+        _showErrorDialog(
+          result['message'] ?? 'Could not find the email or an error occurred.',
+        );
+      }
+    }
+  }
+
+  void _showErrorDialog(String message) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Password Reset Error'),
+        content: Text(message),
+        actions: <Widget>[
+          TextButton(
+            onPressed: () {
+              Navigator.of(ctx).pop();
+              _emailFocusNode.requestFocus();
+            },
+            child: const Text('Okay'),
+          )
+        ],
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Provider.of<ThemeProvider>(context).currentTheme;
+
+    final Color inputFillColor = theme.whiteColor;
+    final Color inputTextColor = theme.blackColor;
+    final Color inputHintIconColor = theme.blackColor.withOpacity(0.6);
+    final Color borderColor = theme.whiteColor.withOpacity(0.5);
+
+    return Form(
+      key: _formKey,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.start,
+            children: [
+              // Back button to return to Step 1
+              IconButton(
+                icon: Icon(Icons.arrow_back, color: theme.whiteColor),
+                onPressed: widget.onBack,
+              ),
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.only(left: 8.0),
+                  child: Text(
+                    'Forgot Password',
+                    style: TextStyle(color: theme.whiteColor, fontSize: 22, fontWeight: FontWeight.bold),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16.0),
+
+          Text(
+            'Enter your email to receive a new one-time password.',
+            textAlign: TextAlign.start,
+            style: TextStyle(color: theme.whiteColor.withOpacity(0.8), fontSize: 16),
+          ),
+          const SizedBox(height: 16.0),
+
+          // Email Input Field
+          TextFormField(
+            controller: widget.emailController,
+            focusNode: _emailFocusNode,
+            keyboardType: TextInputType.emailAddress,
+            style: TextStyle(color: inputTextColor),
+            decoration: InputDecoration(
+              filled: true,
+              fillColor: inputFillColor,
+              hintText: 'Registered email address',
+              hintStyle: TextStyle(color: inputHintIconColor),
+              prefixIcon: Icon(Icons.email, color: inputHintIconColor),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12.0),
+                borderSide: BorderSide(color: borderColor),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12.0),
+                borderSide: BorderSide(color: borderColor),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12.0),
+                borderSide: BorderSide(color: theme.secondaryColor, width: 2.0),
+              ),
+              contentPadding: const EdgeInsets.symmetric(vertical: 18.0, horizontal: 16.0),
+            ),
+            validator: (value) {
+              if (value == null || value.isEmpty) {
+                return 'Please enter your email address';
+              }
+              final emailRegex = RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
+              if (!emailRegex.hasMatch(value)) {
+                return 'Please enter a valid email address (e.g., user@domain.com)';
+              }
+              return null;
+            },
+          ),
+          const SizedBox(height: 24.0),
+
+          // Request New Code Button
+          _isLoading
+              ? Center(child: CircularProgressIndicator(color: theme.secondaryColor))
+              : ElevatedButton(
+            onPressed: _requestNewCode,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: theme.primaryColor,
+              padding: const EdgeInsets.symmetric(vertical: 18.0),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12.0),
+              ),
+            ),
+            child: Text(
+              'Send New Password',
+              style: TextStyle(
+                fontSize: 18.0,
+                color: theme.whiteColor,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

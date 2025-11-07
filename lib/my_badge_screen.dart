@@ -1,39 +1,59 @@
-// lib/my_badge_screen.dart
-import 'package:shared_preferences/shared_preferences.dart';
-
+// lib/my_badge_screen.dart (Final working version for display)
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart'; // 💡 Import Provider
-import 'package:emecexpo/providers/theme_provider.dart'; // 💡 Import your ThemeProvider
-import 'package:emecexpo/model/badge_model.dart';
+import 'package:flutter_svg/flutter_svg.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:provider/provider.dart'; // Import Provider
+import 'package:emecexpo/providers/theme_provider.dart'; // Import ThemeProvider
+import 'package:emecexpo/model/user_model.dart';
+import 'package:emecexpo/model/app_theme_data.dart';
 
-import 'main.dart';
+import 'main.dart'; // Assuming this defines your theme structure
 
-class MyBadgeScreen extends StatelessWidget {
-  const MyBadgeScreen({super.key});
+class MyBadgeScreen extends StatefulWidget {
+  final User user;
+
+  const MyBadgeScreen({super.key, required this.user});
+
+  @override
+  State<MyBadgeScreen> createState() => _MyBadgeScreenState();
+}
+
+class _MyBadgeScreenState extends State<MyBadgeScreen> {
+  String? _qrCodeXml;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadQrCode();
+  }
+
+  Future<void> _loadQrCode() async {
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+    final String? xml = prefs.getString('qrCodeXml');
+    setState(() {
+      _qrCodeXml = xml;
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
-    // 💡 Access the theme provider and get the current theme.
-    final themeProvider = Provider.of<ThemeProvider>(context);
-    final theme = themeProvider.currentTheme;
     late SharedPreferences prefs;
-    // Example MyBadge data.
-    final MyBadge userBadge = MyBadge(
-      name: 'TEST TEST',
-      role: 'Manager',
-      company: 'SUBGENIOS sarl',
-      qrCodeImagePath: 'assets/qr_code_placeholder.png',
-      visitorStatus: 'VISITOR',
-    );
-
-    final double screenWidth = MediaQuery.of(context).size.width;
-    final double screenHeight = MediaQuery.of(context).size.height;
+    // Access the current theme data
+    final theme = Provider.of<ThemeProvider>(context).currentTheme;
 
     return Scaffold(
-      // ✅ Use a theme color for the main background
+      // 🎨 Apply theme background color
       backgroundColor: theme.whiteColor,
       appBar: AppBar(
-        title: const Text('My Badge'),
+        // 🎨 Apply theme primary color or surface color to AppBar
+        backgroundColor: theme.primaryColor,
+        // 🎨 Apply theme color to the title text
+        title: Center(
+          child: Text(
+            "My Badge",
+            style: TextStyle(color: theme.whiteColor),
+          ),
+        ),
         leading: IconButton(
           icon: Icon(Icons.arrow_back_ios, color: theme.whiteColor), // Assuming a light icon on a colored AppBar
           onPressed: () async{
@@ -43,102 +63,76 @@ class MyBadgeScreen extends StatelessWidget {
                 context, MaterialPageRoute(builder: (context) => WelcomPage()));
           },
         ),
-        // ✅ Use theme colors for the AppBar
-        backgroundColor: theme.primaryColor,
-        foregroundColor: theme.whiteColor,
-        centerTitle: true,
-        elevation: 0,
       ),
-      body: Column(
-        children: [
-          Expanded(
-            child: SingleChildScrollView(
-              child: Padding(
-                padding: const EdgeInsets.all(20.0),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: <Widget>[
-                    SizedBox(height: screenHeight * 0.05),
-
-                    Text(
-                      userBadge.name,
-                      style: TextStyle(
-                        fontSize: 24,
-                        fontWeight: FontWeight.bold,
-                        // ✅ Use a theme color for the text
-                        color: theme.blackColor.withOpacity(0.87),
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                    const SizedBox(height: 5),
-
-                    Text(
-                      userBadge.roleAndCompany,
-                      style: TextStyle(
-                        fontSize: 16,
-                        // ✅ Use a theme color for the text
-                        color: theme.blackColor.withOpacity(0.6),
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                    SizedBox(height: screenHeight * 0.1),
-
-                    // QR Code Image
-                    Container(
-                      width: screenWidth * 0.7,
-                      height: screenWidth * 0.7,
-                      // ✅ Use a theme color for the QR background area
-                      color: theme.whiteColor,
-                      child: Image.asset(
-                        userBadge.qrCodeImagePath,
-                        fit: BoxFit.contain,
-                        // ✅ Conditionally apply color filter for dark mode
-                       // color: themeProvider.isDark ? theme.whiteColor : null,
-                        errorBuilder: (context, error, stackTrace) {
-                          return Center(
-                            child: Icon(
-                              Icons.qr_code,
-                              size: 100,
-                              // ✅ Use a theme color for the icon
-                              color: theme.blackColor.withOpacity(0.6),
-                            ),
-                          );
-                        },
-                      ),
-                    ),
-                    SizedBox(height: screenHeight * 0.1),
-                  ],
+      body: Center(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(20.0),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              // 1. Display User Name
+              Text(
+                "${widget.user.prenom ?? ''} ${widget.user.nom ?? ''}",
+                style: TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                  // 🎨 Apply theme primary text color
+                  color: theme.primaryColor,
                 ),
               ),
-            ),
-          ),
-          // Visitor Status Bar
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.symmetric(vertical: 15.0),
-            // ✅ Use a theme color for the status bar background
-            color: theme.primaryColor,
-            child: Text(
-              userBadge.visitorStatus,
-              style: TextStyle(
-                // ✅ Use a theme color for the status bar text
-                color: theme.whiteColor,
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
+              const SizedBox(height: 10),
+              // 2. Display Company
+              Text(
+                "${widget.user.societe ?? 'N/A'}",
+                style: TextStyle(
+                  fontSize: 18,
+                  // 🎨 Apply theme secondary text color
+                  color: Colors.grey,
+                ),
               ),
-              textAlign: TextAlign.center,
-            ),
+              const SizedBox(height: 40),
+
+              // 3. Display QR Code (SVG from XML)
+              if (_qrCodeXml != null && _qrCodeXml!.isNotEmpty)
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    // 🎨 Use whiteColor for the QR code background (essential for scanning)
+                    color: theme.whiteColor,
+                    borderRadius: BorderRadius.circular(10),
+                    boxShadow: [
+                      // 🎨 Use theme black color for shadow
+                      BoxShadow(blurRadius: 5, color: theme.blackColor.withOpacity(0.12))
+                    ],
+                  ),
+                  child: SvgPicture.string(
+                    _qrCodeXml!,
+                    width: 250,
+                    height: 250,
+                  ),
+                )
+              else
+                Padding(
+                  padding: const EdgeInsets.all(20.0),
+                  child: Text(
+                    "QR Code loading or not available. Please ensure verification was successful.",
+                    // 🎨 Apply theme primary text color
+                    style: TextStyle(color: theme.primaryColor),
+                  ),
+                ),
+
+              const SizedBox(height: 40),
+              Text(
+                "Scan this badge to network!",
+                style: TextStyle(
+                  fontStyle: FontStyle.italic,
+                  // 🎨 Apply theme secondary text color
+                  color: Colors.grey,
+                ),
+              ),
+            ],
           ),
-          Divider(
-            // ✅ Use a theme color for the divider line
-            color: theme.blackColor.withOpacity(0.2),
-            height: 1,
-            thickness: 1,
-            indent: 0,
-            endIndent: 0,
-          ),
-        ],
+        ),
       ),
     );
   }

@@ -6,8 +6,8 @@ import 'package:emecexpo/providers/theme_provider.dart';
 import 'package:emecexpo/model/user_model.dart';
 import 'package:emecexpo/login_screen.dart';
 
-import 'main.dart';
-import 'model/app_theme_data.dart';
+import 'main.dart'; // Contains WelcomPage
+import 'model/app_theme_data.dart'; // Contains AppThemeData
 
 class MyProfileScreen extends StatefulWidget {
   final User user;
@@ -38,6 +38,8 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
     final SharedPreferences prefs = await SharedPreferences.getInstance();
     await prefs.remove('authToken');
     await prefs.remove('currentUserJson');
+    await prefs.remove('qrCodeXml'); // Clear QR code and user data on logout
+
     Navigator.of(context).pushAndRemoveUntil(
       MaterialPageRoute(builder: (context) => const LoginScreen()),
           (Route<dynamic> route) => false,
@@ -96,51 +98,24 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
     );
   }
 
-  // --- Helper Widget: Interest Tag (Commented out, but kept for reference) ---
-  /*
-  Widget _buildInterestTag(String interest, AppThemeData theme) {
-    return Chip(
-      label: Text(
-        interest,
-        style: TextStyle(
-          color: theme.primaryColor,
-          fontSize: 13,
-          fontWeight: FontWeight.w500,
-        ),
-      ),
-      backgroundColor: theme.primaryColor.withOpacity(0.1),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(8.0),
-        side: BorderSide(color: theme.primaryColor.withOpacity(0.3), width: 0.5),
-      ),
-      padding: const EdgeInsets.symmetric(horizontal: 4.0, vertical: 2.0),
-    );
-  }
-  */
-
   @override
   Widget build(BuildContext context) {
     final themeProvider = Provider.of<ThemeProvider>(context);
     final theme = themeProvider.currentTheme;
 
+    // 💡 UPDATED FIELD ACCESS: Using 'profession' from User model
     final String? profilePicUrl = _currentUser.pic != null && _currentUser.pic!.isNotEmpty
-        ? "https://buzzevents.co/storage/${_currentUser.pic!}"
+        ? "https://www.buzzevents.co/storage/${_currentUser.pic!}" // Use correct domain base
         : null;
 
     final String initials = _getInitials(_currentUser);
     final String fullName = _currentUser.name ?? '${_currentUser.prenom ?? ''} ${_currentUser.nom ?? ''}'.trim();
-    final String location = '${_currentUser.city ?? 'N/A'}, ${_currentUser.country ?? 'N/A'}';
 
-    // Commented out the interests list
-    /*
-    final List<String> interests = [
-      'Networking & Infrastructure',
-      'Mobile Development',
-      'Web Technologies',
-      'AI & Machine Learning',
-      'Cloud Computing',
-    ];
-    */
+    // 🎯 CHANGED: Accessing the 'profession' field now
+    final String jobTitle = _currentUser.profession ?? 'N/A';
+    final String companyName = _currentUser.societe ?? 'N/A';
+
+    final String location = '${_currentUser.city ?? 'N/A'}, ${_currentUser.country ?? 'N/A'}';
 
     return Scaffold(
       backgroundColor: Colors.grey[50],
@@ -150,9 +125,11 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
           icon: Icon(Icons.arrow_back_ios, color: theme.whiteColor),
           onPressed: () async{
             prefs = await SharedPreferences.getInstance();
-            prefs.setString("Data", "99");
+            await prefs.setString("Data", "99");
+
+            // FIXED NAVIGATION: Pass the User object to WelcomPage
             Navigator.pushReplacement(
-                context, MaterialPageRoute(builder: (context) => WelcomPage()));
+                context, MaterialPageRoute(builder: (context) => WelcomPage(user: _currentUser)));
           },
         ),
         backgroundColor: theme.primaryColor,
@@ -233,9 +210,10 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
                     ),
                     const SizedBox(height: 5),
 
-                    // Job Title
+                    // Job Title (Profession) and Company
                     Text(
-                      _currentUser.jobtitle ?? 'Attendee',
+                      // 🎯 CHANGED: Now uses jobTitle (mapped to profession)
+                      '$jobTitle at $companyName',
                       textAlign: TextAlign.center,
                       style: TextStyle(
                         fontSize: 18,
@@ -262,14 +240,28 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
                 theme: theme,
                 icon: Icons.business,
                 label: 'Company',
-                value: _currentUser.company ?? 'N/A',
+                value: companyName,
               ),
               _buildInfoCard(
+                theme: theme,
+                icon: Icons.work_outline,
+                // 🎯 CHANGED LABEL: Display as 'Profession'
+                label: 'Profession',
+                value: jobTitle,
+              ),
+              _buildInfoCard(
+                theme: theme,
+                icon: Icons.phone_outlined,
+                label: 'Phone',
+                value: _currentUser.tel ?? 'N/A', // Assuming 'tel' is correct
+              ),
+/* _buildInfoCard(
                 theme: theme,
                 icon: Icons.location_on_outlined,
                 label: 'Location',
                 value: location,
               ),
+*/
               _buildInfoCard(
                 theme: theme,
                 icon: Icons.email_outlined,
@@ -278,46 +270,11 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
               ),
               const SizedBox(height: 20),
 
-              // --- 3. My Interests Section (Commented Out) ---
-              /*
-              Text(
-                'My Interests',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: theme.blackColor.withOpacity(0.87),
-                ),
-              ),
-              const Divider(color: Colors.grey),
-              Wrap(
-                spacing: 8.0,
-                runSpacing: 8.0,
-                children: interests.map((interest) {
-                  return _buildInterestTag(interest, theme);
-                }).toList(),
-              ),
-              */
-
               const SizedBox(height: 80),
             ],
           ),
         ),
       ),
-      // --- Floating Action Button (Edit) Commented Out ---
-      /*
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Edit Profile functionality coming soon!')),
-          );
-        },
-        backgroundColor: theme.secondaryColor,
-        foregroundColor: theme.whiteColor,
-        icon: const Icon(Icons.edit),
-        label: const Text('Edit'),
-      ),
-      floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
-      */
     );
   }
 }
