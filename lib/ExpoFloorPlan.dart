@@ -27,14 +27,27 @@ class ExpoFloorPlan extends StatefulWidget {
 class _ExpoFloorPlanState extends State<ExpoFloorPlan> {
   late SharedPreferences prefs;
 
-  // 💡 1. Define a Future variable to hold the API call result
+  // Controller to manage the InteractiveViewer's transformations
+  final TransformationController _transformationController = TransformationController();
+
+  // Define the target scale for zooming in
+  static const double _zoomInScale = 2.0;
+
+  // Define a Future variable to hold the API call result
   late Future<String?> _floorPlanUrlFuture;
 
   @override
   void initState() {
     super.initState();
-    // 💡 2. Initialize the Future in initState to prevent multiple calls
+    // Initialize the Future in initState to prevent multiple calls
     _floorPlanUrlFuture = FloorPlanApiService.getFloorPlanImageUrl();
+  }
+
+  // Dispose the controller
+  @override
+  void dispose() {
+    _transformationController.dispose();
+    super.dispose();
   }
 
   // Back button logic remains the same (navigates to WelcomPage)
@@ -44,6 +57,38 @@ class _ExpoFloorPlanState extends State<ExpoFloorPlan> {
     Navigator.pushReplacement(
         context, MaterialPageRoute(builder: (context) => const WelcomPage()));
   }
+
+  // 💡 UPDATED: Double-tap logic for zoom in/out at the tap location
+  void _handleDoubleTap(TapDownDetails details) {
+    // Get the current scale from the matrix
+    final currentScale = _transformationController.value.getMaxScaleOnAxis();
+
+    // Define the threshold for considering it 'default' zoom
+    const double defaultScaleThreshold = 1.0;
+
+    if (currentScale > defaultScaleThreshold) {
+      // If currently zoomed in, reset to default (zoom out)
+      // Use an animation for a smoother return to identity.
+      _transformationController.value = Matrix4.identity();
+    } else {
+      // If currently at default, zoom in at the tap point
+
+      // 1. Get the local position of the tap within the InteractiveViewer's content
+      final Offset position = details.localPosition;
+
+      // 2. Calculate the difference between the tap point and the center of the content (relative to the viewport center)
+      final Offset focalPointAlignment = position / context.size!.width * 2.0 - const Offset(1.0, 1.0);
+
+      // 3. Create the zoom-in transformation matrix (scale and translate)
+      final Matrix4 newMatrix = Matrix4.identity()
+        ..translate(-position.dx * (_zoomInScale - 1), -position.dy * (_zoomInScale - 1))
+        ..scale(_zoomInScale);
+
+      // Apply the new matrix to zoom in at the tap point
+      _transformationController.value = newMatrix;
+    }
+  }
+
 
   // This builder is reused to show loading or error states consistently
   Widget _buildStatusWidget(BuildContext context, ThemeProvider themeProvider, {String? errorText}) {
@@ -128,7 +173,7 @@ class _ExpoFloorPlanState extends State<ExpoFloorPlan> {
           color: theme.whiteColor,
           padding: const EdgeInsets.all(16.0),
 
-          // 💡 3. Use FutureBuilder to handle the asynchronous API call
+          // Use FutureBuilder to handle the asynchronous API call
           child: FutureBuilder<String?>(
             future: _floorPlanUrlFuture,
             builder: (context, snapshot) {
@@ -153,43 +198,51 @@ class _ExpoFloorPlanState extends State<ExpoFloorPlan> {
               // --- 6. SUCCESS STATE ---
               final floorPlanUrl = snapshot.data!;
 
-              return InteractiveViewer(
-                boundaryMargin: const EdgeInsets.all(20.0),
-                minScale: 0.5,
-                maxScale: 4.0,
-                child: Center(
-                  child: Image.network(
-                    floorPlanUrl, // Use the fetched URL
-                    fit: BoxFit.contain,
+              // 💡 WRAP InteractiveViewer in GestureDetector, using onDoubleTapDown to get coordinates
+              return GestureDetector(
+                onDoubleTapDown: (details) => _handleDoubleTap(details),
+                // Using an unhandled DoubleTap callback ensures the event is consumed
+                onDoubleTap: () {},
+                child: InteractiveViewer(
+                  // Attach the controller
+                  transformationController: _transformationController,
+                  boundaryMargin: const EdgeInsets.all(20.0),
+                  minScale: 0.5,
+                  maxScale: 4.0,
+                  child: Center(
+                    child: Image.network(
+                      floorPlanUrl, // Use the fetched URL
+                      fit: BoxFit.contain,
 
-                    // --- IMAGE LOADING BUILDER ---
-                    loadingBuilder: (BuildContext context, Widget child, ImageChunkEvent? loadingProgress) {
-                      if (loadingProgress == null) {
-                        return child;
-                      }
-                      // Show progress indicator while the image itself is downloading
-                      return Container(
-                        height: 250,
-                        alignment: Alignment.center,
-                        child: CircularProgressIndicator(
-                          value: loadingProgress.expectedTotalBytes != null
-                              ? loadingProgress.cumulativeBytesLoaded / loadingProgress.expectedTotalBytes!
-                              : null,
-                          color: theme.secondaryColor,
-                        ),
-                      );
-                    },
+                      // --- IMAGE LOADING BUILDER ---
+                      loadingBuilder: (BuildContext context, Widget child, ImageChunkEvent? loadingProgress) {
+                        if (loadingProgress == null) {
+                          return child;
+                        }
+                        // Show progress indicator while the image itself is downloading
+                        return Container(
+                          height: 250,
+                          alignment: Alignment.center,
+                          child: CircularProgressIndicator(
+                            value: loadingProgress.expectedTotalBytes != null
+                                ? loadingProgress.cumulativeBytesLoaded / loadingProgress.expectedTotalBytes!
+                                : null,
+                            color: theme.secondaryColor,
+                          ),
+                        );
+                      },
 
-                    // --- IMAGE ERROR BUILDER ---
-                    errorBuilder: (BuildContext context, Object exception, StackTrace? stackTrace) {
-                      debugPrint('Floor Plan Image failed to load from URL ($floorPlanUrl): $exception');
-                      // Show the styled error widget if Image.network fails to fetch the image
-                      return _buildStatusWidget(
-                          context,
-                          themeProvider,
-                          errorText: 'Failed to display the floor plan image. Please check the URL and network connection.'
-                      );
-                    },
+                      // --- IMAGE ERROR BUILDER ---
+                      errorBuilder: (BuildContext context, Object exception, StackTrace? stackTrace) {
+                        debugPrint('Floor Plan Image failed to load from URL ($floorPlanUrl): $exception');
+                        // Show the styled error widget if Image.network fails to fetch the image
+                        return _buildStatusWidget(
+                            context,
+                            themeProvider,
+                            errorText: 'Failed to display the floor plan image. Please check the URL and network connection.'
+                        );
+                      },
+                    ),
                   ),
                 ),
               );
